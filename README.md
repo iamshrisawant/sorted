@@ -69,9 +69,9 @@ SortedPC allows you to view a history of automated file moves. If a file was sor
 *   Run the **Learn from Corrections** action so the system tweaks its ranking weights and learns your true preference.
 
 ### 4. Benchmarking & Calibration (For Researchers)
-The original research scripts are preserved in the root directory:
-*   `python benchmark.py`: Evaluates performance against synthetic and academic datasets (20 Newsgroups).
-*   `python calibration.py`: Calculates the optimal F1 confidence threshold.
+The original research scripts are preserved in the `research/` directory:
+*   `python research/benchmark.py`: Evaluates performance against synthetic and academic datasets (20 Newsgroups).
+*   `python research/calibration.py`: Calculates the optimal F1 confidence threshold.
 
 ## Project Structure
 
@@ -82,11 +82,12 @@ Sorted/
 │   ├── core/
 │   │   ├── pipelines/        # Builder, Initializer, Sorter, Reinforcer, Watcher
 │   │   └── utils/            # Indexing, Logging, Notifications, Path Mgmt
+├── research/                 # Isolated Research & Benchmarking Scripts
+│   ├── benchmark.py          # Academic Benchmarking Suite
+│   ├── calibration.py        # Threshold Calibration Tool
+│   └── ...                   # Other legacy research files
 ├── assets/                   # Project visual assets
-├── benchmark.py              # Academic Benchmarking Suite
-├── calibration.py            # Threshold Calibration Tool
-├── requirements.txt          # Updated System Dependencies
-└── config.py                 # Global Configuration fallback
+└── requirements.txt          # Updated System Dependencies
 ```
 
 ## License

@@ -15,6 +15,11 @@ import colorama
 colorama.init(autoreset=True)
 from colorama import Fore, Style
 
+# Add project root to path so 'python src/main.py' works
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 # --- Application Imports ---
 from src.core.pipelines.initializer import run_initializer
 from src.core.pipelines.builder import build_from_paths

@@ -15,7 +15,7 @@ nltk                    # Tokenization, basic text cleanup
 faiss-cpu               # Efficient vector indexing (CPU-only)
 
 # --- Local LLM (optional) ---
-llama-cpp-python        # Lightweight GGUF-based local model runner
+# llama-cpp-python        # Lightweight GGUF-based local model runner
 
 # --- File operations + Scheduling ---
 watchdog                # File system monitoring
@@ -25,8 +25,8 @@ loguru                  # Logging
 rich                    # Better CLI display
 
 # --- GUI support ---
-PySide6                 # Qt-based desktop UI
-shiboken6               # Needed by PySide6
+# PySide6                 # Qt-based desktop UI
+# shiboken6               # Needed by PySide6
 
 # --- Feedback, templating, output formatting ---
 Jinja2                  # Prompt templating (RAG, responses)
@@ -34,3 +34,4 @@ Jinja2                  # Prompt templating (RAG, responses)
 # --- Configuration + Notifications ---
 python-dotenv           # Load `.env` securely for paths or flags
 plyer                   # Desktop notifications (used by notifier)
+pandas                  # Required for data processing

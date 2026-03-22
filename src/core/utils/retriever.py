@@ -11,6 +11,9 @@ from src.core.utils.processor import embedding_dim
 # --- Logger Setup ---
 logger = logging.getLogger(__name__)
 
+_cached_index = None
+_cached_metadata = None
+_cached_mtime = 0.0
 
 def retrieve_similar(
     query_embeddings: List[List[float]],
@@ -39,8 +42,18 @@ def retrieve_similar(
         raise FileNotFoundError(f"[Retriever] Metadata file missing: {metadata_path}")
 
     try:
-        # Load index
-        index = faiss.read_index(str(index_path))
+        global _cached_index, _cached_metadata, _cached_mtime
+        
+        current_mtime = index_path.stat().st_mtime
+        if _cached_index is None or current_mtime != _cached_mtime:
+            _cached_index = faiss.read_index(str(index_path))
+            with metadata_path.open("r", encoding="utf-8") as f:
+                _cached_metadata = json.load(f)
+            _cached_mtime = current_mtime
+            
+        index = _cached_index
+        metadata = _cached_metadata
+        
         expected_dim = embedding_dim
 
         # Prepare query
@@ -54,10 +67,6 @@ def retrieve_similar(
 
         # Perform search
         D, I = index.search(query_array, top_k)
-
-        # Load metadata
-        with metadata_path.open("r", encoding="utf-8") as f:
-            metadata = json.load(f)
 
         # Collect results
         results = []

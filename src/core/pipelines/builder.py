@@ -80,6 +80,7 @@ def process_folder(folder_path: str) -> None:
                     "parent_folder_path": processed_data["parent_folder_path"],
                     "file_type": processed_data["file_type"],
                     "content_hash": processed_data["content_hash"],
+                    "relative_folder": str(file_path.parent.relative_to(folder)).replace('\\', '/')
                 },
                 faiss_index_path=get_faiss_index_path(),
                 metadata_store_path=get_faiss_metadata_path(),

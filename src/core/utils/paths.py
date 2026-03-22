@@ -7,8 +7,16 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 
 # --- Base paths ---
+import os
 ROOT_DIR = Path(__file__).resolve().parents[3]  # from src/core/utils -> ROOT
-DATA_DIR = ROOT_DIR / "src" / "data"
+
+TEST_DIR_ENV = os.environ.get("SORTED_TEST_DATA_DIR")
+if TEST_DIR_ENV:
+    DATA_DIR = Path(TEST_DIR_ENV)
+else:
+    DATA_DIR = ROOT_DIR / "src" / "data"
+
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # --- Data files ---
 PATHS_FILE = DATA_DIR / "paths.json"

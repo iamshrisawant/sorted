@@ -40,26 +40,38 @@ def normalize(path):
     if not path: return "None"
     return os.path.normpath(path).replace('\\', '/')
 
-def generate_noise(text):
-    prefix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-    date = "2024-10-27"
-    boilerplate = "CONFIDENTIAL. This document is intended for the recipient only. Page 1 of 5."
-    noisy_text = text if text else ""
-    chars = list(noisy_text)
+def apply_ocr_noise(text):
+    if not text: return ""
+    chars = list(text)
     for i in range(len(chars)):
-        if random.random() < 0.05: 
+        if random.random() < 0.03: 
             if random.random() < 0.5:
                 if i < len(chars) - 1: chars[i], chars[i+1] = chars[i+1], chars[i]
             else:
                 chars[i] = random.choice(string.ascii_lowercase)
-    noisy_text = "".join(chars)
-    formats = [
-        f"{prefix}_{date} - {noisy_text}\n\n{boilerplate}",
-        f"Subject: {noisy_text}\nDate: {date}\nRef: {prefix}\n\n{boilerplate}",
-        f"{noisy_text} (ID: {prefix})",
-        f"[SCANNED_DOC] {noisy_text} ... {boilerplate}"
-    ]
-    return random.choice(formats)
+    return "".join(chars)
+
+def generate_thick_document(label, seed_text):
+    prefix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+    date = f"2024-{random.randint(1,12):02d}-{random.randint(1,28):02d}"
+    
+    header = f"=== SYSTEM RECORD | ID: {prefix} | DATE: {date} ===\n" 
+    header += "CONFIDENTIAL AND PROPRIETARY. DO NOT DISTRIBUTE.\n"
+    
+    lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. "
+    filler_top = lorem * random.randint(3, 6)
+    filler_bottom = lorem * random.randint(3, 6)
+    
+    intent_block = f"\n\n--- KEY INTENT METADATA ---\nSUBJECT: {seed_text}\nCATEGORY MAP: {label}\n---------------------------\n\n"
+    footer = "\n\n" + "="*50 + "\nEND OF REPORT. GENERATED AUTOMATICALLY by System Daemon V9.2.1.\n" + "="*50
+    
+    doc = header + filler_top + intent_block + filler_bottom + footer
+    return apply_ocr_noise(doc)
+
+def generate_thin_document(seed_text):
+    prefix = ''.join(random.choices(string.ascii_letters + string.digits, k=6))
+    doc = f"ID:{prefix} - {seed_text}"
+    return apply_ocr_noise(doc)
 
 def setup_env():
     if os.path.exists(BENCHMARK_ENV): shutil.rmtree(BENCHMARK_ENV)
@@ -235,14 +247,28 @@ def run():
         ("random.txt", "Recipe for Chocolate Cake", "None") 
     ]
     test_set_A = []
-    for _ in range(40): 
+    
+    # 25 Iterations of Thick Documents (Stresses the 500-Character extraction bounds)
+    for _ in range(25): 
         for fname, content, exp in base_cases:
             test_set_A.append({
-                "name": f"{random.randint(10000,99999)}_{fname}",
-                "content": generate_noise(content),
+                "name": f"thick_{random.randint(10000,99999)}_{fname}",
+                "content": generate_thick_document(exp, content),
                 "label": normalize(exp)
             })
-    evaluate_phase("Phase A (Synthetic)", tr_docs, tr_labels, test_set_A)
+            
+    # 25 Iterations of Thin Documents (Stresses raw localized semantic mapping without boilerplate)
+    for _ in range(25): 
+        for fname, content, exp in base_cases:
+            test_set_A.append({
+                "name": f"thin_{random.randint(10000,99999)}_{fname}",
+                "content": generate_thin_document(content),
+                "label": normalize(exp)
+            })
+            
+    # Randomly shuffle to simulate a chaotic directory scan
+    random.shuffle(test_set_A)
+    evaluate_phase("Phase A (Realistic Clutter)", tr_docs, tr_labels, test_set_A)
     
     # --- PHASE B: ACADEMIC GOLD STANDARD ---
     cats = ['sci.med', 'rec.autos', 'comp.graphics', 'misc.forsale']

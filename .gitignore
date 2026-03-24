@@ -46,8 +46,10 @@ plot.py
 
 # === Local Output & Personal Data ===
 benchmark_env/
-inbox
-env_
+benchmark_data/
+inbox/
+env_*
+test_inbox_*
 sorted/
 
 # === Jupyter Notebook Checkpoints ===
@@ -78,6 +80,3 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
-test_inbox_Phase_B_(Academic)/
-env_Phase_B_(Academic)/
-benchmark_data/

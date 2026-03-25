@@ -75,6 +75,9 @@ The original research scripts are fully aligned with the production software and
 
 *Please see [EVALUATIONS.md](EVALUATIONS.md) for the complete quantitative analysis proving Sorted's dominance over traditional methods.*
 
+### 5. Future Roadmap
+Looking to contribute or see where the project is heading? See [futureworks.md](futureworks.md) for planned SOTA enhancements like Zero-Shot initialization and Hybrid Search.
+
 ## Project Structure
 
 ```
@@ -87,6 +90,7 @@ Sorted/
 ├── evaluation/               # Testing suite and mathematical benchmarks
 ├── assets/                   # Project visual assets
 ├── EVALUATIONS.md            # Verified sorting metrics vs ML baselines
+├── futureworks.md            # SOTA Development Roadmap
 └── requirements.txt          # Updated System Dependencies
 ```
 

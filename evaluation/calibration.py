@@ -5,7 +5,6 @@ import sys
 import numpy as np
 from sklearn.metrics import f1_score
 
-# CRITICAL: Route all data generation to a sandbox so live user data is NOT affected
 os.environ["SORTED_TEST_DATA_DIR"] = os.path.abspath("calibration_data")
 
 # Add project root to sys.path

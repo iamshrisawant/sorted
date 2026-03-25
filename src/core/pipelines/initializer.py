@@ -1,13 +1,7 @@
-# [initializer.py] — Patched for Instant Startup
-
 import json
 import logging
 from pathlib import Path
 import shutil
-
-# --- Patched Block: Deferred Heavy Imports ---
-# `faiss` and `processor` are no longer imported at the top level.
-# This makes any script that imports the initializer start instantly.
 
 from src.core.utils.paths import (
     get_paths_file,
@@ -45,7 +39,7 @@ def ensure_unsorted_folder():
     logger.info(f"[Initializer] Ensured unsorted folder: {folder}")
 
 def ensure_faiss_files():
-    # --- Patched Block: Import `faiss` and `processor` only when needed ---
+    # --- Import `faiss` and `processor` only when needed ---
     import faiss
     from src.core.utils.processor import embedding_dim
 

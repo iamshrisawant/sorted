@@ -6,10 +6,8 @@ import logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 
-# --- Base paths ---
 import os
-ROOT_DIR = Path(__file__).resolve().parents[3]  # from src/core/utils -> ROOT
-
+ROOT_DIR = Path(__file__).resolve().parents[3]
 TEST_DIR_ENV = os.environ.get("SORTED_TEST_DATA_DIR")
 if TEST_DIR_ENV:
     DATA_DIR = Path(TEST_DIR_ENV)
@@ -18,20 +16,16 @@ else:
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# --- Data files ---
 PATHS_FILE = DATA_DIR / "paths.json"
 CONFIG_FILE = DATA_DIR / "config.json"
 LOGS_FILE = DATA_DIR / "logs.jsonl"
 
-# --- FAISS files (directly in data/) ---
 FAISS_INDEX_FILE = DATA_DIR / "index.faiss"
 FAISS_METADATA_FILE = DATA_DIR / "index_meta.jsonl"
 
-# --- Path normalization ---
 def normalize_path(p: Union[str, Path]) -> str:
     return str(Path(p).expanduser().resolve())
 
-# --- File path accessors ---
 def get_paths_file() -> Path:
     return PATHS_FILE
 
@@ -66,14 +60,12 @@ def get_project_root_for_imports() -> Path:
 def get_watcher_log() -> Path:
     return ROOT_DIR / "src" / "watcher_launch.log"
 
-# --- paths.json accessors ---
 def get_watch_paths() -> List[str]:
     return _load_list_from_json(PATHS_FILE, "watch_paths")
 
 def get_organized_paths() -> List[str]:
     return _load_list_from_json(PATHS_FILE, "organized_paths")
 
-# --- config.json accessors ---
 def get_builder_state() -> bool:
     return _load_config_flag("builder_busy")
 
@@ -86,7 +78,6 @@ def get_watcher_state() -> bool:
 def get_scoring_weights() -> Dict[str, float]:
     return _load_dict_from_json(CONFIG_FILE, keys=["alpha", "beta", "gamma", "delta"])
 
-# --- log access helpers ---
 def load_all_logs() -> List[Dict]:
     if not LOGS_FILE.exists():
         return []
@@ -105,7 +96,6 @@ def get_correction_logs() -> Dict[str, Dict]:
         log["file_path"]: log for log in logs if log.get("category") == "corrections"
     }
 
-# --- Internal shared loaders ---
 def _load_list_from_json(path: Path, key: str) -> List[str]:
     if not path.exists():
         return []

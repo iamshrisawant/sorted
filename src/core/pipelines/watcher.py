@@ -1,5 +1,4 @@
-# [watcher.py] — Final Production Version
-# This version is now simpler as it relies on the launcher for its environment.
+
 
 import sys
 from pathlib import Path
@@ -7,8 +6,6 @@ import os
 import time
 import logging
 
-# The sys.path modification is no longer strictly necessary if the launcher
-# sets PYTHONPATH, but it remains as a robust fallback.
 try:
     project_root = Path(__file__).resolve().parents[3]
     if str(project_root) not in sys.path:
@@ -18,13 +15,11 @@ except IndexError:
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
-# --- Now, these imports will succeed ---
 from src.core.utils.paths import get_config_file, get_watch_paths, get_watcher_log
 from src.core.utils.notifier import notify_system_event
 from src.core.pipelines.sorter import handle_new_file
 from src.core.utils.logger import has_been_handled
 
-# ─── PID Tracking (Essential for startup signaling) ──────────────────────────
 
 def is_pid_alive(pid: int) -> bool:
     """Check if a process with the given PID is running."""
@@ -52,7 +47,6 @@ def clear_pid():
     """Removes the PID file on clean shutdown."""
     get_pid_file().unlink(missing_ok=True)
 
-# ─── Main Watcher Loop ────────────────────────────────────────────────────────
 
 def watcher_loop(poll_interval: float = 3.0):
     logger = logging.getLogger('watcher_debug')
@@ -71,7 +65,7 @@ def watcher_loop(poll_interval: float = 3.0):
     boot_time = time.time()
 
     try:
-        while True: # The launcher controls the lifecycle now.
+        while True:
             for folder_str in watch_dirs:
                 folder = Path(folder_str).resolve()
                 if not folder.is_dir(): continue
@@ -98,7 +92,6 @@ def watcher_loop(poll_interval: float = 3.0):
         notify_system_event("Watcher Offline", "Watcher has stopped.")
         logger.info("Stopped and offline.")
 
-# ─── Entry Point (Ensures Robust Logging) ───────────────────────────────────
 
 if __name__ == "__main__":
     log_file_path = get_watcher_log()

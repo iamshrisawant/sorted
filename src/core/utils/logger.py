@@ -8,8 +8,6 @@ from src.core.utils.paths import get_logs_path
 
 logger = logging.getLogger(__name__)
 
-
-# ─── Internal: Load Logs While Optionally Filtering ──────────────────────────
 def _load_existing_logs(
     log_file: Path,
     target_file_path: str,
@@ -34,8 +32,6 @@ def _load_existing_logs(
                 continue
     return entries
 
-
-# ─── Log a System Move (from Sorter/Actor) ───────────────────────────────────
 def log_move(sorted_data: dict, log_file: Optional[Path] = None):
     log_file = log_file or get_logs_path()
     file_path = str(Path(sorted_data["file_path"]).resolve())
@@ -62,8 +58,6 @@ def log_move(sorted_data: dict, log_file: Optional[Path] = None):
 
     logger.info(f"[Logger] Logged system move for {file_path}")
 
-
-# ─── Log a Manual Correction (from GUI/Main) ─────────────────────────────────
 def log_correction(file_path: str, corrected_folder: str, log_file: Optional[Path] = None):
     log_file = log_file or get_logs_path()
     file_path = str(Path(file_path).resolve())
@@ -90,8 +84,6 @@ def log_correction(file_path: str, corrected_folder: str, log_file: Optional[Pat
 
     logger.info(f"[Logger] Logged correction for {file_path}")
 
-
-# ─── Check If a File Has Been Handled ────────────────────────────────────────
 def has_been_handled(file_path: str, content_hash: Optional[str] = None) -> bool:
     log_file = get_logs_path()
     if not log_file.exists():
@@ -113,8 +105,6 @@ def has_been_handled(file_path: str, content_hash: Optional[str] = None) -> bool
                 continue
     return False
 
-
-# ─── Get Latest Move or Correction Log Entry for a File ──────────────────────
 def get_latest_log_entry(file_path: str) -> Optional[Dict]:
     log_file = get_logs_path()
     if not log_file.exists():
@@ -129,7 +119,6 @@ def get_latest_log_entry(file_path: str) -> Optional[Dict]:
             if line.strip()
         ]
 
-    # Return the most recent move/correction entry with matching file name
     for entry in reversed(lines):
         if entry.get("file_path", "").endswith(file_name) and entry.get("category") in {"moves", "corrections"}:
             return entry

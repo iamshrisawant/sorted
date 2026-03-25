@@ -11,17 +11,14 @@ from openpyxl import load_workbook
 from pptx import Presentation
 from sentence_transformers import SentenceTransformer
 
-# --- Logger Setup ---
 logging.getLogger("pdfminer").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
-# --- Globals & Constants ---
 MODEL_NAME = "all-MiniLM-L6-v2"
 _model = None
 embedding_dim = 384
 
 def _extract_content(path: Path, file_type: str) -> str:
-    """Extracts raw text content from a file."""
     try:
         if file_type == "pdf":
             with pdfplumber.open(path) as pdf:
@@ -62,10 +59,6 @@ def _load_model(local_only: bool = True):
     return _model
 
 def process_file(file_path: Union[str, Path]) -> Dict:
-    """
-    PAPER IMPLEMENTATION: Extract First+Last 500 chars (Structural Proxies).
-    Generates EXACTLY 1 normalized vector per document.
-    """
     path = Path(file_path)
     if not path.is_file():
         return {}
@@ -82,7 +75,6 @@ def process_file(file_path: Union[str, Path]) -> Dict:
     full_content = f"{path.name}\n{cleaned_content}"
     
     model = _load_model()
-    # Normalize embeddings unconditionally so that L2 dist == 2*(1 - cos_sim)
     emb = model.encode(full_content, show_progress_bar=False, normalize_embeddings=True)
     
     if isinstance(emb, np.ndarray):

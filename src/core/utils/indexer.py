@@ -7,11 +7,8 @@ from typing import List, Dict, Any
 
 from src.core.utils.processor import embedding_dim
 
-# --- Logger Setup ---
 logger = logging.getLogger(__name__)
 
-
-# --- FAISS Index Handling ---
 def load_faiss_index(index_path: Path, expected_dim: int) -> faiss.IndexFlatL2:
     if index_path.exists():
         logger.info(f"[Indexer] Loading existing FAISS index from {index_path.name}")
@@ -24,8 +21,6 @@ def load_faiss_index(index_path: Path, expected_dim: int) -> faiss.IndexFlatL2:
     logger.info(f"[Indexer] Creating new FAISS index with dim={expected_dim}")
     return faiss.IndexFlatL2(expected_dim)
 
-
-# --- Metadata Store Handling ---
 def load_metadata_store(path: Path) -> List[Dict[str, Any]]:
     if path.exists():
         try:
@@ -36,14 +31,11 @@ def load_metadata_store(path: Path) -> List[Dict[str, Any]]:
             return []
     return []
 
-
 def save_metadata_store(path: Path, metadata: List[Dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
     logger.info(f"[Indexer] Saved metadata to {path.name} ({len(metadata)} entries)")
 
-
-# --- Main Indexing Function ---
 def index_file(
     embeddings: List[List[float]],
     file_metadata: Dict[str, str],
@@ -57,7 +49,6 @@ def index_file(
         return
 
     try:
-        # Convert to 2D NumPy array
         embedding_array = np.array(embeddings, dtype=np.float32)
         if embedding_array.ndim == 1:
             embedding_array = embedding_array.reshape(1, -1)
@@ -68,15 +59,12 @@ def index_file(
         if actual_dim != expected_dim:
             raise ValueError(f"[Indexer] Embedding dim mismatch: expected {expected_dim}, got {actual_dim}")
 
-        # Load or create FAISS index
         index = load_faiss_index(faiss_index_path, expected_dim)
 
-        # Add vectors to index
         index.add(embedding_array)
         faiss.write_index(index, str(faiss_index_path))
         logger.info(f"[Indexer] Added {len(embedding_array)} vector(s) for {file_label}")
 
-        # Append metadata
         metadata = load_metadata_store(metadata_store_path)
         metadata.extend([file_metadata] * len(embedding_array))
         save_metadata_store(metadata_store_path, metadata)

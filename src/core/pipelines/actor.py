@@ -11,21 +11,16 @@ from src.core.utils.notifier import notify_file_sorted
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 
-
-# ─── Handle Normal File Sort ────────────────────────────────────────────────
 def handle_sorted_file(sorted_data: Dict):
     file_path = Path(sorted_data["file_path"]).resolve()
     final_folder = Path(sorted_data["final_folder"]).resolve()
     embeddings = sorted_data.get("embeddings", [])
     used_fallback = sorted_data.get("used_fallback", False)
 
-    # 1. Log the move
     log_move(sorted_data)
 
-    # 2. Move the file to final folder
     new_path = Path(move_file(file_path, final_folder)).resolve()
 
-    # 3. Index the moved file
     index_file(
         embeddings=embeddings,
         file_metadata={
@@ -40,7 +35,6 @@ def handle_sorted_file(sorted_data: Dict):
         metadata_store_path=get_faiss_metadata_path()
     )
 
-    # 4. Notify the user
     notify_file_sorted(
         file_path=str(new_path),
         final_folder=final_folder.name,
@@ -51,11 +45,9 @@ def handle_sorted_file(sorted_data: Dict):
     logger.info(f"[Actor] File moved {move_status}: {file_path.name} → {final_folder}")
 
 
-# ─── Handle Manual Correction ───────────────────────────────────────────────
 def handle_correction(file_path: str, corrected_folder: str):
     corrected_folder = Path(corrected_folder).resolve()
 
-    # 1. Resolve actual source file location based on log
     latest_entry = get_latest_log_entry(file_path)
     if latest_entry:
         file_name = Path(file_path).name
@@ -63,13 +55,10 @@ def handle_correction(file_path: str, corrected_folder: str):
     else:
         file_path = Path(file_path).resolve()
 
-    # 2. Log correction
     log_correction(str(file_path), str(corrected_folder))
 
-    # 3. Move file
     new_path = Path(move_file(file_path, corrected_folder)).resolve()
 
-    # 4. Reindex with updated location, no embeddings
     index_file(
         embeddings=None,
         file_metadata={
@@ -84,7 +73,6 @@ def handle_correction(file_path: str, corrected_folder: str):
         metadata_store_path=get_faiss_metadata_path()
     )
 
-    # 5. Notify user
     notify_file_sorted(
         file_path=str(new_path),
         final_folder=corrected_folder.name,
@@ -94,12 +82,9 @@ def handle_correction(file_path: str, corrected_folder: str):
     logger.info(f"[Actor] Correction applied and reindexed: {new_path.name}")
 
 
-# ─── Entrypoint for Sorter ──────────────────────────────────────────────────
 def act_on_file(sorted_data: Dict):
     handle_sorted_file(sorted_data)
 
-
-# ─── Standalone Test ────────────────────────────────────────────────────────
 if __name__ == "__main__":
     dummy = {
         "file_path": "/some/path/sample.pdf",

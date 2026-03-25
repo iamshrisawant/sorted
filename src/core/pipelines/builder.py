@@ -61,8 +61,7 @@ def process_folder(folder_path: str) -> None:
         try:
             logger.info(f"[Builder] Found: {file_path.name}")
             
-            # --- MODIFIED BLOCK ---
-            # Single call to the processor replaces the old multi-step process
+            # Single call to the processor
             processed_data = process_file(file_path)
 
             # Check if processing was successful and yielded embeddings
@@ -85,7 +84,6 @@ def process_folder(folder_path: str) -> None:
                 faiss_index_path=get_faiss_index_path(),
                 metadata_store_path=get_faiss_metadata_path(),
             )
-            # --- END MODIFIED BLOCK ---
 
         except Exception as e:
             logger.warning(f"[Builder] Failed to process {file_path.name}: {repr(e)}")

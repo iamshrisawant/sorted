@@ -5,8 +5,6 @@ import random
 import string
 import sys
 
-# CRITICAL: Route all data generation to a sandbox so live user data is NOT affected
-# Must be set before importing any src.core modules
 os.environ["SORTED_TEST_DATA_DIR"] = os.path.abspath("benchmark_data")
 
 # Add project root to sys.path

@@ -1,3 +1,4 @@
 @echo off
-set PYTHONPATH=C:\Users\Shriswarup Sawant\Documents\Shriswarup\Extras\Projects\sortedpc
-start "SortedPC Watcher" /B "C:\Users\Shriswarup Sawant\Documents\Shriswarup\Extras\Projects\sortedpc\venv\Scripts\pythonw.exe" "C:\Users\Shriswarup Sawant\Documents\Shriswarup\Extras\Projects\sortedpc\src\core\pipelines\watcher.py"
+set PYTHONPATH=C:\Users\Shriswarup Sawant\Documents\Sorted
+cd /d "C:\Users\Shriswarup Sawant\Documents\Sorted"
+start "SortedPC Watcher" /B "C:\Users\Shriswarup Sawant\Documents\Sorted\venv\scripts\pythonw.exe" "C:\Users\Shriswarup Sawant\Documents\Sorted\src\core\pipelines\watcher.py"

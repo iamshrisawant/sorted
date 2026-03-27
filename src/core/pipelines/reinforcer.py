@@ -4,6 +4,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from src.core.utils.paths import get_logs_path, get_config_file
+from src.core.utils.locking import FileLock
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 CATEGORY_CORRECTION = "corrections"
@@ -21,14 +22,15 @@ def load_corrections() -> list:
         raise FileNotFoundError("[Reinforcer] logs.jsonl not found.")
 
     corrections = []
-    with log_path.open("r", encoding="utf-8") as f:
-        for line in f:
-            try:
-                entry = json.loads(line)
-                if entry.get("category") == CATEGORY_CORRECTION:
-                    corrections.append(entry)
-            except json.JSONDecodeError:
-                continue
+    with FileLock(log_path):
+        with log_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                    if entry.get("category") == CATEGORY_CORRECTION:
+                        corrections.append(entry)
+                except json.JSONDecodeError:
+                    continue
     return corrections
 
 # ─── Load and Save Weights ───────────────────────────────────────────────────
@@ -37,8 +39,9 @@ def load_weights() -> dict:
     if not config_path.exists():
         return DEFAULT_WEIGHTS.copy()
 
-    with config_path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
+    with FileLock(config_path):
+        with config_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
 
     return {
         "alpha": float(data.get("alpha", DEFAULT_WEIGHTS["alpha"])),
@@ -49,16 +52,17 @@ def load_weights() -> dict:
 
 def save_weights(weights: dict):
     config_path = get_config_file()
-    if config_path.exists():
-        with config_path.open("r", encoding="utf-8") as f:
-            config = json.load(f)
-    else:
-        config = {}
+    with FileLock(config_path):
+        if config_path.exists():
+            with config_path.open("r", encoding="utf-8") as f:
+                config = json.load(f)
+        else:
+            config = {}
 
-    config.update(weights)
+        config.update(weights)
 
-    with config_path.open("w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2)
+        with config_path.open("w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
 
     logger.info(f"[Reinforcer] Updated weights saved to {config_path.name}")
 

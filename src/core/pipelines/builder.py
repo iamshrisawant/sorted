@@ -13,6 +13,7 @@ from src.core.utils.paths import (
     get_faiss_index_path,
     get_faiss_metadata_path,
     get_organized_paths,
+    update_config,
 )
 
 # --- Logger Setup ---
@@ -27,22 +28,6 @@ def is_valid_file(file_path: Path) -> bool:
         and not file_path.name.startswith("~")
         and not file_path.name.startswith(".")
     )
-
-
-def read_config() -> dict:
-    path = get_config_file()
-    if not path.exists():
-        return {}
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def update_config(updates: dict) -> None:
-    path = get_config_file()
-    config = read_config()
-    config.update(updates)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(config, f, indent=2)
 
 
 # --- Core Builder Logic ---

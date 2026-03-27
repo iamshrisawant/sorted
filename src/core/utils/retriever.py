@@ -33,12 +33,14 @@ def retrieve_similar(
     try:
         global _cached_index, _cached_metadata, _cached_mtime
         
-        current_mtime = index_path.stat().st_mtime
-        if _cached_index is None or current_mtime != _cached_mtime:
-            _cached_index = faiss.read_index(str(index_path))
-            with metadata_path.open("r", encoding="utf-8") as f:
-                _cached_metadata = json.load(f)
-            _cached_mtime = current_mtime
+        from src.core.utils.locking import FileLock
+        with FileLock(index_path):
+            current_mtime = index_path.stat().st_mtime
+            if _cached_index is None or current_mtime != _cached_mtime:
+                _cached_index = faiss.read_index(str(index_path))
+                with metadata_path.open("r", encoding="utf-8") as f:
+                    _cached_metadata = json.load(f)
+                _cached_mtime = current_mtime
             
         index = _cached_index
         metadata = _cached_metadata

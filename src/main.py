@@ -1,4 +1,3 @@
-
 import sys
 import json
 import ctypes
@@ -21,10 +20,12 @@ from src.core.pipelines.initializer import run_initializer
 from src.core.pipelines.builder import build_from_paths
 from src.core.pipelines.actor import handle_correction
 from src.core.pipelines.reinforcer import reinforce
+from src.core.pipelines.sorter import handle_new_file
 from src.core.utils.paths import (
     get_watch_paths, get_organized_paths, get_paths_file,
     get_config_file, get_logs_path, get_xml, ROOT_DIR,
-    get_faiss_index_path, get_data_dir
+    get_faiss_index_path, get_data_dir, get_unsorted_folder,
+    update_paths
 )
 from src.core.pipelines.watcher import get_pid_file, is_pid_alive
 from src.core.utils.notifier import notify_system_event
@@ -46,7 +47,8 @@ def safe_input(prompt: str = "") -> str:
         sys.exit(0)
 
 def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    # os.system('cls' if os.name == 'nt' else 'clear')
+    pass
 
 def print_header(title: str):
     clear_screen()
@@ -54,14 +56,29 @@ def print_header(title: str):
     print(Style.BRIGHT + f"  {title}".center(40))
     print(Fore.CYAN + "=" * 40 + Style.RESET_ALL)
 
-def run_as_admin(command_to_run: str, wait=False):
+import shlex
+
+def run_as_admin(command_to_run: str, wait=False) -> bool:
+    """Run a command with elevated privileges using ShellExecuteW."""
     try:
-        hinstance = ctypes.windll.shell32.ShellExecuteW(None, "runas", command_to_run, None, None, 1)
-        if hinstance <= 32:
-            print(Fore.RED + "Admin elevation failed or was cancelled.")
+        # Correctly split command into executable and parameters for ShellExecuteW
+        try:
+            parts = shlex.split(command_to_run, posix=False)
+        except ValueError:
+            # Fallback for poorly quoted strings
+            parts = command_to_run.split(' ', 1)
+            
+        if not parts:
             return False
-        logger.info(f"Requesting admin rights to run: {command_to_run}")
-        return True
+            
+        executable = parts[0].strip('"')
+        parameters = " ".join(parts[1:]) if len(parts) > 1 else ""
+        
+        logger.info(f"Requesting admin rights to run: {executable} {parameters}")
+        
+        # 1 = SW_SHOWNORMAL
+        hinstance = ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, parameters, None, 1)
+        return hinstance > 32
     except Exception as e:
         print(Fore.RED + f"Error: Elevation failed. {e}")
         return False
@@ -77,6 +94,7 @@ def generate_watcher_launcher_bat() -> bool:
         watcher_script_path = ROOT_DIR / "src" / "core" / "pipelines" / "watcher.py"
         bat_content = f"""@echo off
 set PYTHONPATH={ROOT_DIR}
+cd /d "{ROOT_DIR}"
 start "SortedPC Watcher" /B "{python_exe}" "{watcher_script_path}"
 """
         WATCHER_LAUNCHER_BAT.write_text(bat_content)
@@ -85,29 +103,86 @@ start "SortedPC Watcher" /B "{python_exe}" "{watcher_script_path}"
         logger.error(f"FATAL: Could not generate watcher launcher script: {e}")
         return False
 
+def generate_task_xml() -> bool:
+    """Dynamically generates the scheduled task XML to fix hardcoded path crashes."""
+    try:
+        xml_path = get_xml()
+        python_dir = Path(sys.executable).parent
+        pythonw_exe = python_dir / "pythonw.exe"
+        if not pythonw_exe.exists():
+            pythonw_exe = sys.executable
+
+        script_path = ROOT_DIR / "src" / "core" / "pipelines" / "watcher.py"
+        working_dir = ROOT_DIR / "src"
+
+        xml_content = f"""<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo><Author>SortedPC_TaskManager</Author><URI>\\SortedPC_Watcher</URI></RegistrationInfo>
+  <Principals><Principal id="Author"><LogonType>InteractiveToken</LogonType><RunLevel>HighestAvailable</RunLevel></Principal></Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <StartWhenAvailable>true</StartWhenAvailable><AllowHardTerminate>true</AllowHardTerminate><ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Enabled>true</Enabled><Hidden>true</Hidden>
+  </Settings>
+  <Triggers><LogonTrigger><Enabled>true</Enabled></LogonTrigger></Triggers>
+  <Actions Context="Author">
+    <Exec>
+      <Command>{pythonw_exe}</Command>
+      <Arguments>"{script_path}"</Arguments>
+      <WorkingDirectory>{working_dir}</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>"""
+        xml_path.parent.mkdir(parents=True, exist_ok=True)
+        xml_path.write_text(xml_content, encoding="utf-16")
+        return True
+    except Exception as e:
+        logger.error(f"FATAL: Could not generate XML configuration: {e}")
+        return False
+
 def do_register_task():
-    xml_path = get_xml()
-    command = f'"{SCHTASKS_EXE}" /Create /TN "{TASK_NAME}" /XML "{xml_path.resolve()}" /F'
-    run_as_admin(command)
+    if generate_task_xml():
+        xml_path = get_xml()
+        command = f'"{SCHTASKS_EXE}" /Create /TN "{TASK_NAME}" /XML "{xml_path.resolve()}" /F'
+        if run_as_admin(command):
+            print(Fore.GREEN + "Registration request sent. Check if task exists in Task Scheduler.")
+        else:
+            print(Fore.RED + "Failed to request registration.")
 
 def do_unregister_task():
     command = f'"{SCHTASKS_EXE}" /Delete /TN "{TASK_NAME}" /F'
-    run_as_admin(command)
+    if run_as_admin(command):
+        print(Fore.GREEN + "Unregistration request sent.")
+    else:
+        print(Fore.RED + "Failed to request unregistration.")
 
-def do_start_watcher():
+def do_start_watcher() -> bool:
     if generate_watcher_launcher_bat():
-        run_as_admin(str(WATCHER_LAUNCHER_BAT))
+        # Check return value to prevent hanging on UAC denial
+        return run_as_admin(f'"{WATCHER_LAUNCHER_BAT}"')
+    return False
 
-def do_stop_watcher():
+def do_stop_watcher() -> bool:
     pid_file = get_pid_file()
     if pid_file.exists():
         try:
             pid = int(pid_file.read_text())
             command = f'"{TASKKILL_EXE}" /PID {pid} /F /T'
-            run_as_admin(command)
-            pid_file.unlink(missing_ok=True)
+            if run_as_admin(command):
+                # Wait for the process to actually die to prevent file lock race conditions
+                for _ in range(10):
+                    if not is_pid_alive(pid):
+                        break
+                    time.sleep(0.5)
+                pid_file.unlink(missing_ok=True)
+                return True
+            else:
+                print(Fore.RED + "Action denied. The watcher is still running.")
+                return False
         except (ValueError, FileNotFoundError):
-            pass 
+            pid_file.unlink(missing_ok=True)
+            return True
+    return True
 
 def is_watcher_online() -> bool:
     pid_file = get_pid_file()
@@ -130,7 +205,7 @@ def get_watcher_status() -> str:
     if not online and registered: return f"{Fore.YELLOW}Offline{Style.RESET_ALL} (Registered)"
     return f"{Fore.RED}Offline & Unregistered{Style.RESET_ALL}"
 
-def wait_for_watcher_online(timeout: int = 15) -> bool:
+def wait_for_watcher_online(timeout: int = 60) -> bool:
     print(Fore.YELLOW + "  -> Waiting for watcher to confirm it is online...", end="", flush=True)
     for _ in range(timeout):
         if is_watcher_online():
@@ -173,21 +248,20 @@ def startup_check():
         if not is_task_registered():
             choice = safe_input("Start the watcher now or register it to run on startup? (start/register/skip): ").lower()
             if choice == 'start':
-                do_start_watcher()
-                wait_for_watcher_online()
+                if do_start_watcher():
+                    wait_for_watcher_online()
             elif choice == 'register':
                 do_register_task()
                 print(Fore.GREEN + "Registered to start on next login. You can also start it manually from the menu.")
         else:
             if safe_input("Watcher is registered but offline. Start it now? (y/n): ").lower() == 'y':
-                do_start_watcher()
-                wait_for_watcher_online()
+                if do_start_watcher():
+                    wait_for_watcher_online()
 
     print(Fore.GREEN + "\nSystem check complete. Launching main menu.")
     time.sleep(2)
 
 def manage_organized_paths_menu():
-    """Menu for managing folders the system learns from."""
     while True:
         print_header("Manage Organized Paths")
         paths = get_organized_paths()
@@ -209,7 +283,7 @@ def manage_organized_paths_menu():
             new_path = safe_input("Enter the full path to add: ")
             if Path(new_path).is_dir():
                 paths.append(new_path)
-                with get_paths_file().open("w") as f: json.dump({"watch_paths": get_watch_paths(), "organized_paths": paths}, f, indent=2)
+                update_paths({"organized_paths": paths})
                 print(Fore.GREEN + "Path added. Remember to re-build the index.")
             else:
                 print(Fore.RED + "Invalid path.")
@@ -220,7 +294,7 @@ def manage_organized_paths_menu():
                 idx = int(safe_input("Enter number of path to remove: ")) - 1
                 if 0 <= idx < len(paths):
                     removed = paths.pop(idx)
-                    with get_paths_file().open("w") as f: json.dump({"watch_paths": get_watch_paths(), "organized_paths": paths}, f, indent=2)
+                    update_paths({"organized_paths": paths})
                     print(Fore.GREEN + f"Removed {removed}. Remember to re-build the index.")
                 else:
                     print(Fore.RED + "Invalid number.")
@@ -266,7 +340,7 @@ def manage_watcher_menu():
             new_path = safe_input("Enter path to watch: ")
             if Path(new_path).is_dir():
                 paths.append(new_path)
-                with get_paths_file().open("w") as f: json.dump({"watch_paths": paths, "organized_paths": get_organized_paths()}, f, indent=2)
+                update_paths({"watch_paths": paths})
                 print(Fore.GREEN + "Path added. Restart watcher to apply changes.")
             else:
                 print(Fore.RED + "Invalid path.")
@@ -276,22 +350,23 @@ def manage_watcher_menu():
                 idx = int(safe_input("Enter number of path to remove: ")) - 1
                 if 0 <= idx < len(paths):
                     paths.pop(idx)
-                    with get_paths_file().open("w") as f: json.dump({"watch_paths": paths, "organized_paths": get_organized_paths()}, f, indent=2)
+                    update_paths({"watch_paths": paths})
                     print(Fore.GREEN + "Path removed. Restart watcher to apply changes.")
                 else:
                     print(Fore.RED + "Invalid number.")
             except ValueError:
                 print(Fore.RED + "Invalid input.")
             time.sleep(1)
-        elif choice == 's': do_start_watcher(); wait_for_watcher_online()
+        elif choice == 's': 
+            if do_start_watcher(): wait_for_watcher_online()
         elif choice == 't': do_stop_watcher(); time.sleep(1)
         elif choice == 'e': do_register_task(); time.sleep(1)
         elif choice == 'u': do_unregister_task(); time.sleep(1)
         elif choice == 'k':
-            do_stop_watcher()
-            time.sleep(2)
-            do_start_watcher()
-            wait_for_watcher_online()
+            if do_stop_watcher():
+                time.sleep(1)
+                if do_start_watcher():
+                    wait_for_watcher_online()
         elif choice == 'x': break
 
 def view_moves_menu():
@@ -311,7 +386,7 @@ def view_moves_menu():
         time.sleep(2)
         return
 
-    for i, move in enumerate(reversed(moves[:20])): # Show last 20 moves
+    for i, move in enumerate(reversed(moves[-20:])):
         print(f"  {i+1}. {Path(move['file_path']).name} -> {Path(move['final_folder']).name}")
 
     print("\n" + "-"*20)
@@ -324,7 +399,7 @@ def view_moves_menu():
         try:
             idx = int(safe_input("Enter number of move to correct: ")) - 1
             if 0 <= idx < len(moves):
-                move_to_correct = list(reversed(moves[:20]))[idx]
+                move_to_correct = list(reversed(moves[-20:]))[idx]
                 print(f"Correcting: {Path(move_to_correct['file_path']).name}")
                 new_dest = safe_input("Enter the full, correct destination folder path: ")
                 if Path(new_dest).is_dir():
@@ -350,19 +425,78 @@ def learn_menu():
         print(Fore.YELLOW + "Operation cancelled.")
     time.sleep(2)
 
+def manual_sort_menu():
+    print_header("Manual Sort Folder")
+    print("This will sort all existing files in a directory.")
+    print(f"Default unsorted folder: {get_unsorted_folder()}")
+    
+    path_str = safe_input("Enter folder path to sort (leave blank for default): ").strip()
+    if not path_str:
+        folder = get_unsorted_folder()
+    else:
+        folder = Path(path_str)
+
+    if not folder.exists() or not folder.is_dir():
+        print(Fore.RED + "Invalid directory.")
+        time.sleep(2)
+        return
+
+    print(Fore.YELLOW + f"Scanning {folder}...")
+    
+    # Use iterative approach to avoid recursion depth issues as requested
+    files_to_process = []
+    stack = [folder]
+    while stack:
+        curr = stack.pop()
+        try:
+            for item in curr.iterdir():
+                if item.is_file():
+                    # Basic filters matching builder/watcher logic
+                    if not item.name.startswith(("~", ".")):
+                        files_to_process.append(item)
+                elif item.is_dir():
+                    stack.append(item)
+        except PermissionError:
+            continue
+
+    if not files_to_process:
+        print(Fore.YELLOW + "No files found to sort.")
+        time.sleep(2)
+        return
+
+    print(Fore.CYAN + f"Found {len(files_to_process)} files. Starting sort...")
+    
+    success_count = 0
+    for i, file_path in enumerate(files_to_process):
+        print(f"[{i+1}/{len(files_to_process)}] Sorting: {file_path.name}")
+        try:
+            handle_new_file(str(file_path))
+            success_count += 1
+        except Exception as e:
+            print(Fore.RED + f"Error sorting {file_path.name}: {e}")
+
+    print(Fore.GREEN + f"\nManual sort complete. Successfully processed {success_count}/{len(files_to_process)} files.")
+    time.sleep(3)
+
 def reset_all_menu():
     print_header("Reset System")
     print(Fore.RED + Style.BRIGHT + "WARNING: This will delete all logs, indexes, and configurations.")
     if safe_input("Are you absolutely sure? Type 'reset' to confirm: ") == 'reset':
         print("Stopping watcher and unregistering...")
-        do_stop_watcher()
-        time.sleep(1)
+        if not do_stop_watcher():
+            print(Fore.RED + "Cannot safely reset system while the watcher is still locked. Aborting.")
+            time.sleep(2)
+            return
+            
+        # Extra sleep to guarantee the OS has released all file locks
+        time.sleep(1) 
         do_unregister_task()
         time.sleep(1)
+        
         print("Deleting data files...")
         data_dir = get_data_dir()
         if data_dir.exists():
-            shutil.rmtree(data_dir)
+            shutil.rmtree(data_dir, ignore_errors=True)
         print(Fore.GREEN + "System has been reset. Please restart the application.")
         sys.exit(0)
     else:
@@ -377,7 +511,8 @@ def main_menu():
         print("  2. Manage Watcher")
         print("  3. View & Correct Moves")
         print("  4. Learn from Corrections")
-        print("  5. Reset System")
+        print("  5. Manual Sort Folder")
+        print("  6. Reset System")
         print("  x. Exit")
         print("-" * 40)
         choice = safe_input("Select: ").lower()
@@ -386,7 +521,8 @@ def main_menu():
         elif choice == '2': manage_watcher_menu()
         elif choice == '3': view_moves_menu()
         elif choice == '4': learn_menu()
-        elif choice == '5': reset_all_menu()
+        elif choice == '5': manual_sort_menu()
+        elif choice == '6': reset_all_menu()
         elif choice == 'x':
             if is_watcher_online():
                 print("Stopping watcher...")

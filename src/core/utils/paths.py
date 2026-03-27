@@ -23,6 +23,10 @@ LOGS_FILE = DATA_DIR / "logs.jsonl"
 FAISS_INDEX_FILE = DATA_DIR / "index.faiss"
 FAISS_METADATA_FILE = DATA_DIR / "index_meta.jsonl"
 
+from src.core.utils.locking import FileLock
+
+logger = logging.getLogger(__name__)
+
 def normalize_path(p: Union[str, Path]) -> str:
     return str(Path(p).expanduser().resolve())
 
@@ -48,10 +52,7 @@ def get_unsorted_folder() -> Path:
     return Path.home() / "Documents" / "sortedpc" / "unsorted"
 
 def get_xml() -> Path:
-    path = ROOT_DIR / "src" / "config.xml"
-    if not path.exists():
-        logger.warning(f"[Paths] config.xml not found at expected location: {path}")
-    return path
+    return ROOT_DIR / "src" / "config.xml"
 
 def get_project_root_for_imports() -> Path:
     return ROOT_DIR.parent.parent.parent.parent
@@ -81,8 +82,11 @@ def get_scoring_weights() -> Dict[str, float]:
 def load_all_logs() -> List[Dict]:
     if not LOGS_FILE.exists():
         return []
-    with LOGS_FILE.open("r", encoding="utf-8") as f:
-        return [json.loads(line) for line in f if line.strip()]
+    try:
+        with LOGS_FILE.open("r", encoding="utf-8") as f:
+            return [json.loads(line) for line in f if line.strip()]
+    except (IOError, PermissionError, json.JSONDecodeError):
+        return []
 
 def get_move_logs() -> Dict[str, Dict]:
     logs = load_all_logs()
@@ -99,20 +103,55 @@ def get_correction_logs() -> Dict[str, Dict]:
 def _load_list_from_json(path: Path, key: str) -> List[str]:
     if not path.exists():
         return []
-    with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-    return [normalize_path(p) for p in data.get(key, [])]
+    try:
+        with FileLock(path):
+            with path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            return [normalize_path(p) for p in data.get(key, [])]
+    except (IOError, PermissionError, json.JSONDecodeError):
+        return []
 
 def _load_dict_from_json(path: Path, keys: List[str]) -> Dict[str, float]:
     if not path.exists():
         return {k: 0.0 for k in keys}
-    with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-    return {k: float(data.get(k, 0.0)) for k in keys}
+    try:
+        with FileLock(path):
+            with path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            return {k: float(data.get(k, 0.0)) for k in keys}
+    except (IOError, PermissionError, json.JSONDecodeError):
+        return {k: 0.0 for k in keys}
 
 def _load_config_flag(key: str) -> bool:
     if not CONFIG_FILE.exists():
         return False
-    with CONFIG_FILE.open("r", encoding="utf-8") as f:
-        config = json.load(f)
-    return bool(config.get(key, False))
+    try:
+        with FileLock(CONFIG_FILE):
+            with CONFIG_FILE.open("r", encoding="utf-8") as f:
+                config = json.load(f)
+            return bool(config.get(key, False))
+    except (IOError, PermissionError, json.JSONDecodeError):
+        return False
+
+def update_config(updates: Dict) -> None:
+    """Thread-safe update of config.json"""
+    _update_json_file(CONFIG_FILE, updates)
+
+def update_paths(updates: Dict) -> None:
+    """Thread-safe update of paths.json"""
+    _update_json_file(PATHS_FILE, updates)
+
+def _update_json_file(path: Path, updates: Dict) -> None:
+    try:
+        with FileLock(path):
+            data = {}
+            if path.exists():
+                with path.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+            
+            data.update(updates)
+            
+            with path.open("w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+    except (IOError, PermissionError, json.JSONDecodeError) as e:
+        logger.error(f"Failed to update {path.name}: {e}")

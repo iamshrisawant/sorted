@@ -33,5 +33,6 @@ Jinja2                  # Prompt templating (RAG, responses)
 
 # --- Configuration + Notifications ---
 python-dotenv           # Load `.env` securely for paths or flags
-plyer                   # Desktop notifications (used by notifier)
+plyer                   # Backup Desktop notifications
+windows-toasts          # Native Windows 10/11 toaster notifications
 pandas                  # Required for data processing

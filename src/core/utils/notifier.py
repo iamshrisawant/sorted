@@ -2,24 +2,24 @@ import logging
 from pathlib import Path
 
 try:
-    from windows_toasts import Toast, WindowsToaster
+    from plyer import notification
     TOASTS_ENABLED = True
 except ImportError:
     TOASTS_ENABLED = False
 
 logger = logging.getLogger(__name__)
 
-if TOASTS_ENABLED:
-    toaster = WindowsToaster('SortedPC')
-
 def notify_file_sorted(file_path: str, final_folder: str, similar_folders: list):
     logger.info(f"File sorted: {Path(file_path).name} -> {final_folder}")
     if not TOASTS_ENABLED:
         return
     try:
-        new_toast = Toast()
-        new_toast.text_fields = [f"Sorted: {Path(file_path).name}", f"Destination: {final_folder}"]
-        toaster.show_toast(new_toast)
+        notification.notify(
+            title=f"Sorted: {Path(file_path).name}",
+            message=f"Destination: {final_folder}",
+            app_name="SortedPC",
+            timeout=5
+        )
     except Exception as e:
         logger.warning(f"Failed to send toast notification: {e}")
 
@@ -28,8 +28,11 @@ def notify_system_event(title: str, message: str):
     if not TOASTS_ENABLED:
         return
     try:
-        new_toast = Toast()
-        new_toast.text_fields = [title, message]
-        toaster.show_toast(new_toast)
+        notification.notify(
+            title=title,
+            message=message,
+            app_name="SortedPC",
+            timeout=5
+        )
     except Exception as e:
         logger.warning(f"Failed to send system event toast: {e}")

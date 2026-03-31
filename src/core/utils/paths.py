@@ -22,6 +22,10 @@ LOGS_FILE = DATA_DIR / "logs.jsonl"
 
 FAISS_INDEX_FILE = DATA_DIR / "index.faiss"
 FAISS_METADATA_FILE = DATA_DIR / "index_meta.jsonl"
+FOLDER_CONTEXTS_FILE = DATA_DIR / "folder_contexts.json"
+
+MODELS_DIR = ROOT_DIR / "src" / "core" / "models"
+MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 from src.core.utils.locking import FileLock
 
@@ -45,8 +49,14 @@ def get_faiss_index_path() -> Path:
 def get_faiss_metadata_path() -> Path:
     return FAISS_METADATA_FILE
 
+def get_folder_contexts_path() -> Path:
+    return FOLDER_CONTEXTS_FILE
+
 def get_data_dir() -> Path:
     return DATA_DIR
+
+def get_models_dir() -> Path:
+    return MODELS_DIR
 
 def get_unsorted_folder() -> Path:
     return Path.home() / "Documents" / "sortedpc" / "unsorted"
@@ -67,6 +77,18 @@ def get_watch_paths() -> List[str]:
 def get_organized_paths() -> List[str]:
     return _load_list_from_json(PATHS_FILE, "organized_paths")
 
+def get_folder_contexts() -> Dict[str, str]:
+    if not FOLDER_CONTEXTS_FILE.exists():
+        return {}
+    try:
+        with FOLDER_CONTEXTS_FILE.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except (IOError, PermissionError, json.JSONDecodeError):
+        return {}
+
+def update_folder_contexts(updates: Dict[str, str]) -> None:
+    _update_json_file(FOLDER_CONTEXTS_FILE, updates)
+
 def get_builder_state() -> bool:
     return _load_config_flag("builder_busy")
 
@@ -75,9 +97,6 @@ def get_faiss_state() -> bool:
 
 def get_watcher_state() -> bool:
     return _load_config_flag("watcher_online")
-
-def get_scoring_weights() -> Dict[str, float]:
-    return _load_dict_from_json(CONFIG_FILE, keys=["alpha", "beta", "gamma", "delta"])
 
 def load_all_logs() -> List[Dict]:
     if not LOGS_FILE.exists():
@@ -110,17 +129,6 @@ def _load_list_from_json(path: Path, key: str) -> List[str]:
             return [normalize_path(p) for p in data.get(key, [])]
     except (IOError, PermissionError, json.JSONDecodeError):
         return []
-
-def _load_dict_from_json(path: Path, keys: List[str]) -> Dict[str, float]:
-    if not path.exists():
-        return {k: 0.0 for k in keys}
-    try:
-        with FileLock(path):
-            with path.open("r", encoding="utf-8") as f:
-                data = json.load(f)
-            return {k: float(data.get(k, 0.0)) for k in keys}
-    except (IOError, PermissionError, json.JSONDecodeError):
-        return {k: 0.0 for k in keys}
 
 def _load_config_flag(key: str) -> bool:
     if not CONFIG_FILE.exists():

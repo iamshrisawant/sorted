@@ -16,7 +16,8 @@ venv/
 # === LOG FILES ===
 *.log
 logs/
-watcher_launch.log
+src/watcher_launch.log
+src/launch_watcher.bat
 
 # === MODEL FILES ===
 src/core/models/

@@ -85,30 +85,4 @@ def handle_correction(file_path: str, corrected_folder: str):
 def act_on_file(sorted_data: Dict):
     handle_sorted_file(sorted_data)
 
-if __name__ == "__main__":
-    dummy = {
-        "file_path": "/some/path/sample.pdf",
-        "file_name": "sample",
-        "file_type": "pdf",
-        "content_hash": "dummyhash",
-        "final_folder": str(Path.home() / "Documents" / "sortedpc" / "reports"),
-        "similar_folders": ["reports", "memos"],
-        "scoring_breakdown": {
-            "reports": {
-                "mean_similarity": 0.83,
-                "max_similarity": 0.92,
-                "match_count": 4,
-                "name_match_score": 1.0
-            },
-            "memos": {
-                "mean_similarity": 0.62,
-                "max_similarity": 0.70,
-                "match_count": 2,
-                "name_match_score": 0.0
-            }
-        },
-        "embeddings": [[0.1] * 384],
-        "used_fallback": False
-    }
 
-    act_on_file(dummy)

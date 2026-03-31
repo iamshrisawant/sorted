@@ -19,13 +19,12 @@ if PROJECT_ROOT not in sys.path:
 from src.core.pipelines.initializer import run_initializer
 from src.core.pipelines.builder import build_from_paths
 from src.core.pipelines.actor import handle_correction
-from src.core.pipelines.reinforcer import reinforce
 from src.core.pipelines.sorter import handle_new_file
 from src.core.utils.paths import (
     get_watch_paths, get_organized_paths, get_paths_file,
     get_config_file, get_logs_path, get_xml, ROOT_DIR,
     get_faiss_index_path, get_data_dir, get_unsorted_folder,
-    update_paths
+    update_paths, get_folder_contexts, update_folder_contexts
 )
 from src.core.pipelines.watcher import get_pid_file, is_pid_alive
 from src.core.utils.notifier import notify_system_event
@@ -210,7 +209,6 @@ def wait_for_watcher_online(timeout: int = 60) -> bool:
     for _ in range(timeout):
         if is_watcher_online():
             print(Fore.GREEN + " Confirmed!" + Style.RESET_ALL)
-            notify_system_event("Watcher Online", "SortedPC is now monitoring files.")
             return True
         time.sleep(1)
     print(Fore.RED + " Timed out. Check 'src/watcher_launch.log' for errors.")
@@ -226,18 +224,18 @@ def startup_check():
     faiss_index_path = get_faiss_index_path()
 
     if organized_paths and not all(Path(p).exists() for p in organized_paths):
-        print(Fore.YELLOW + "Some organized paths no longer exist.")
-        if safe_input("Re-build FAISS index from available paths? (y/n): ").lower() == 'y':
+        print(Fore.YELLOW + "Some sorting destinations no longer exist.")
+        if safe_input("Update sorting rules to remove them? (y/n): ").lower() == 'y':
             build_from_paths(get_organized_paths())
 
     if not faiss_index_path.exists():
-        print(Fore.YELLOW + "FAISS index not found. The system needs an initial set of sorted folders to learn from.")
+        print(Fore.YELLOW + "System AI has no active rules. It needs initial sorting destinations to learn from.")
         if organized_paths:
-            if safe_input("Build FAISS index from existing organized paths? (y/n): ").lower() == 'y':
+            if safe_input("Activate existing sorting destinations? (y/n): ").lower() == 'y':
                 build_from_paths(organized_paths)
         else:
-            print(Fore.RED + "No organized paths are configured. Please add some to build the index.")
-            manage_organized_paths_menu()
+            print(Fore.RED + "No sorting destinations are configured. Please add some first.")
+            manage_destinations_menu()
 
     if not get_watch_paths():
         print(Fore.YELLOW + "No folders are being watched.")
@@ -261,51 +259,91 @@ def startup_check():
     print(Fore.GREEN + "\nSystem check complete. Launching main menu.")
     time.sleep(2)
 
-def manage_organized_paths_menu():
+def manage_destinations_menu():
     while True:
-        print_header("Manage Organized Paths")
+        print_header("Manage Sorting Destinations")
         paths = get_organized_paths()
-        print("Current Organized Paths (used for learning):")
+        contexts = get_folder_contexts()
+        
+        print("Current Sorting Destinations:")
         if paths:
-            for i, p in enumerate(paths): print(f"  {i+1}. {p}")
+            for i, p in enumerate(paths):
+                print(f"  {i+1}. {p}")
+                if p in contexts:
+                    text = contexts[p]
+                    print(Fore.CYAN + f"     Rule: \"{text[:60]}{'...' if len(text)>60 else ''}\"")
         else:
             print(Fore.YELLOW + "  None configured.")
 
         print("\n" + "-"*20)
-        print("  a. Add a path")
-        print("  r. Remove a path")
-        print("  b. Re-build FAISS Index Now")
+        print("  a. Add a destination folder")
+        print("  r. Remove a destination folder")
+        print("  s. Save & Update Sorting Rules")
         print("  x. Back to main menu")
         print("-" * 20)
         choice = safe_input("Select: ").lower()
 
         if choice == 'a':
-            new_path = safe_input("Enter the full path to add: ")
-            if Path(new_path).is_dir():
-                paths.append(new_path)
+            new_path_str = safe_input("Enter the full explicit folder path:\n> ")
+            new_path = Path(new_path_str).resolve()
+            
+            if not new_path.exists():
+                print(Fore.YELLOW + f"The folder '{new_path.name}' does not exist.")
+                create_it = safe_input("Would you like to create it now? (y/n): ").lower()
+                if create_it == 'y':
+                    try:
+                        new_path.mkdir(parents=True, exist_ok=True)
+                        print(Fore.GREEN + f"Created folder: {new_path}")
+                    except Exception as e:
+                        print(Fore.RED + f"Failed to create folder: {e}")
+                        time.sleep(2)
+                        continue
+                else:
+                    print(Fore.RED + "Operation cancelled.")
+                    time.sleep(1)
+                    continue
+
+            p_str = str(new_path)
+            if not any(Path(p) in new_path.parents or p == p_str for p in paths):
+                paths.append(p_str)
                 update_paths({"organized_paths": paths})
-                print(Fore.GREEN + "Path added. Remember to re-build the index.")
+                print(Fore.GREEN + "Folder registered as a sorting destination.")
             else:
-                print(Fore.RED + "Invalid path.")
-            time.sleep(1)
+                print(Fore.YELLOW + "This folder (or its parent) is already registered.")
+            
+            text = safe_input("Optional: What kind of files should go here? (Enter description, or leave blank to skip):\n> ")
+            if text.strip():
+                contexts[p_str] = text.strip()
+                update_folder_contexts(contexts)
+                print(Fore.GREEN + "Sorting rules saved.")
+                
+            print(Fore.CYAN + "Updating rules so changes apply immediately... Please wait.")
+            build_from_paths(get_organized_paths())
+            print(Fore.GREEN + "Done!")
+            time.sleep(2)
 
         elif choice == 'r':
             try:
-                idx = int(safe_input("Enter number of path to remove: ")) - 1
+                idx = int(safe_input("Enter number of destination to remove: ")) - 1
                 if 0 <= idx < len(paths):
                     removed = paths.pop(idx)
                     update_paths({"organized_paths": paths})
-                    print(Fore.GREEN + f"Removed {removed}. Remember to re-build the index.")
+                    if removed in contexts:
+                        del contexts[removed]
+                        update_folder_contexts(contexts)
+                    print(Fore.GREEN + f"Removed {removed}. Updating rules... Please wait.")
+                    build_from_paths(get_organized_paths())
+                    print(Fore.GREEN + "Done!")
                 else:
                     print(Fore.RED + "Invalid number.")
             except ValueError:
                 print(Fore.RED + "Invalid input.")
             time.sleep(1)
 
-        elif choice == 'b':
-            print("Building FAISS index... this may take a moment.")
+        elif choice == 's':
+            print("Applying new rules... Please wait.")
             build_from_paths(get_organized_paths())
-            print(Fore.GREEN + "Index built successfully.")
+            print(Fore.GREEN + "Rules updated successfully.")
             time.sleep(2)
 
         elif choice == 'x':
@@ -369,61 +407,82 @@ def manage_watcher_menu():
                     wait_for_watcher_online()
         elif choice == 'x': break
 
-def view_moves_menu():
-    print_header("View & Correct Moves")
-    log_file = get_logs_path()
-    if not log_file.exists():
-        print(Fore.YELLOW + "No moves have been logged yet.")
-        time.sleep(2)
-        return
+def review_history_menu():
+    while True:
+        print_header("Review Sorting History & Fix Mistakes")
+        log_file = get_logs_path()
+        if not log_file.exists():
+            print(Fore.YELLOW + "No history found.")
+            time.sleep(2)
+            return
 
-    with log_file.open("r") as f:
-        logs = [json.loads(line) for line in f if line.strip()]
+        with log_file.open("r") as f:
+            logs = [json.loads(line) for line in f if line.strip()]
 
-    moves = [log for log in logs if log.get("category") == "moves"]
-    if not moves:
-        print(Fore.YELLOW + "No moves have been logged yet.")
-        time.sleep(2)
-        return
+        moves = [log for log in logs if log.get("category") == "moves"]
+        if not moves:
+            print(Fore.YELLOW + "No history has been logged yet.")
+            time.sleep(2)
+            return
 
-    for i, move in enumerate(reversed(moves[-20:])):
-        print(f"  {i+1}. {Path(move['file_path']).name} -> {Path(move['final_folder']).name}")
+        for i, move in enumerate(reversed(moves[-20:])):
+            print(f"  {i+1}. {Path(move['file_path']).name} -> {Path(move['final_folder']).name}")
 
-    print("\n" + "-"*20)
-    print("  c. Correct a move")
-    print("  x. Back to main menu")
-    print("-" * 20)
-    choice = safe_input("Select: ").lower()
+        print("\n" + "-"*20)
+        print("  c. Fix a mistake")
+        print("  x. Back to main menu")
+        print("-" * 20)
+        choice = safe_input("Select: ").lower()
 
-    if choice == 'c':
-        try:
-            idx = int(safe_input("Enter number of move to correct: ")) - 1
-            if 0 <= idx < len(moves):
-                move_to_correct = list(reversed(moves[-20:]))[idx]
-                print(f"Correcting: {Path(move_to_correct['file_path']).name}")
-                new_dest = safe_input("Enter the full, correct destination folder path: ")
-                if Path(new_dest).is_dir():
-                    handle_correction(move_to_correct['file_path'], new_dest)
-                    print(Fore.GREEN + "Correction logged and file moved.")
+        if choice == 'c':
+            try:
+                idx = int(safe_input("Enter number of move to fix: ")) - 1
+                if 0 <= idx < len(moves):
+                    move_to_correct = list(reversed(moves[-20:]))[idx]
+                    print(f"Correcting: {Path(move_to_correct['file_path']).name}")
+                    new_dest = safe_input("Enter the full, correct destination folder path: ")
+                    
+                    if Path(new_dest).is_dir():
+                        handle_correction(move_to_correct['file_path'], new_dest)
+                        print(Fore.GREEN + "Mistake fixed. Updating knowledge engine...")
+                        
+                        from src.core.utils.paths import get_organized_paths, update_paths, normalize_path
+                        from src.core.pipelines.builder import build_from_paths
+                        import threading
+                        
+                        norm_dest = normalize_path(new_dest)
+                        organized = get_organized_paths()
+                        
+                        is_covered = False
+                        for p in organized:
+                            try:
+                                if Path(norm_dest).is_relative_to(Path(p)):
+                                    is_covered = True
+                                    break
+                            except AttributeError: # Fallback for extremely old Pythons
+                                if norm_dest.startswith(p):
+                                    is_covered = True
+                                    break
+                                    
+                        if not is_covered:
+                            print(Fore.YELLOW + f"New destination detected. Learning folder: {Path(norm_dest).name}")
+                            organized.append(norm_dest)
+                            update_paths({"organized_paths": organized})
+                            threading.Thread(target=build_from_paths, args=([norm_dest],), daemon=True).start()
+                            notify_system_event("Learning Complete", "AI has indexed a newly corrected folder destination.")
+                        else:
+                            notify_system_event("Correction Logged", "Mistake fixed into an existing knowledge folder.")
+                            
+                        print(Fore.GREEN + "Correction successfully processed!")
+                    else:
+                        print(Fore.RED + "Invalid destination path.")
                 else:
-                    print(Fore.RED + "Invalid destination path.")
-            else:
-                print(Fore.RED + "Invalid number.")
-        except (ValueError, IndexError):
-            print(Fore.RED + "Invalid input.")
-        time.sleep(2)
-    elif choice == 'x':
-        return
-
-def learn_menu():
-    print_header("Learn from Corrections")
-    print("This will analyze past corrections to improve future sorting.")
-    if safe_input("Proceed? (y/n): ").lower() == 'y':
-        reinforce()
-        print(Fore.GREEN + "Learning complete. Weights have been updated.")
-    else:
-        print(Fore.YELLOW + "Operation cancelled.")
-    time.sleep(2)
+                    print(Fore.RED + "Invalid number.")
+            except (ValueError, IndexError):
+                print(Fore.RED + "Invalid input.")
+            time.sleep(2)
+        elif choice == 'x':
+            break
 
 def manual_sort_menu():
     print_header("Manual Sort Folder")
@@ -476,6 +535,7 @@ def manual_sort_menu():
             print(Fore.RED + f"Error sorting {file_path.name}: {e}")
 
     print(Fore.GREEN + f"\nManual sort complete. Successfully processed {success_count}/{len(files_to_process)} files.")
+    notify_system_event("Manual Sort", f"Successfully processed {success_count} files in {folder.name}.")
     time.sleep(3)
 
 def reset_all_menu():
@@ -507,26 +567,21 @@ def main_menu():
     while True:
         print_header("SortedPC Main Menu")
         print(f"Watcher Status: {get_watcher_status()}\n")
-        print("  1. Manage Organized Paths (Learning Data)")
-        print("  2. Manage Watcher")
-        print("  3. View & Correct Moves")
-        print("  4. Learn from Corrections")
-        print("  5. Manual Sort Folder")
-        print("  6. Reset System")
+        print("  1. Manage Sorting Destinations (Folders & Rules)")
+        print("  2. Manage Background Watcher")
+        print("  3. Review Sorting History & Fix Mistakes")
+        print("  4. Sort Inbox Now")
+        print("  5. Reset System")
         print("  x. Exit")
         print("-" * 40)
         choice = safe_input("Select: ").lower()
 
-        if choice == '1': manage_organized_paths_menu()
+        if choice == '1': manage_destinations_menu()
         elif choice == '2': manage_watcher_menu()
-        elif choice == '3': view_moves_menu()
-        elif choice == '4': learn_menu()
-        elif choice == '5': manual_sort_menu()
-        elif choice == '6': reset_all_menu()
+        elif choice == '3': review_history_menu()
+        elif choice == '4': manual_sort_menu()
+        elif choice == '5': reset_all_menu()
         elif choice == 'x':
-            if is_watcher_online():
-                print("Stopping watcher...")
-                do_stop_watcher()
             print("Goodbye.")
             break
 

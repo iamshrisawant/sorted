@@ -35,7 +35,10 @@ def _extract_content(path: Path, file_type: str) -> str:
         elif file_type == "csv":
             df = pd.read_csv(path)
             return df.astype(str).to_string(index=False)
-        elif file_type in ("txt", "md"):
+        elif file_type in ("tsv"):
+            df = pd.read_csv(path, sep='\t')
+            return df.astype(str).to_string(index=False)
+        elif file_type in ("txt", "md", "mdx", "rst", "rtf", "html", "htm", "xml", "eml", "log"):
             return path.read_text(encoding="utf-8", errors="ignore")
         else:
             return ""
@@ -48,12 +51,22 @@ def _compute_hash(text: str) -> str:
 
 def _load_model(local_only: bool = True):
     global _model
+    if _model == "FAILED":
+        raise RuntimeError("Model loading previously failed due to missing files or network errors. Skipping to prevent infinite crash loops.")
+    
     if _model is None:
         try:
+            from src.core.utils.paths import get_models_dir
             logger.info(f"[Processor] Loading model for the first time: {MODEL_NAME}")
-            _model = SentenceTransformer(MODEL_NAME, local_files_only=local_only)
+            # Try to load local first. If not found, internet download fails gracefully.
+            _model = SentenceTransformer(
+                MODEL_NAME, 
+                cache_folder=str(get_models_dir()), 
+                local_files_only=local_only
+            )
             logger.info("[Processor] Model loaded successfully.")
         except Exception as e:
+            _model = "FAILED"
             logger.error(f"[Processor] Failed to load model: {e}")
             raise e
     return _model
@@ -91,3 +104,34 @@ def process_file(file_path: Union[str, Path]) -> Dict:
         "content_hash": _compute_hash(raw_content),
         "embeddings": embeddings,
     }
+
+def process_text_context(text: str, target_folder: Union[str, Path]) -> Dict:
+    path = Path(target_folder)
+    if not path.exists() or not path.is_dir():
+        logger.warning(f"[Processor] Target folder for context does not exist: {target_folder}")
+        return {}
+        
+    cleaned_content = text.strip()
+    full_content = f"{path.name} Context\n{cleaned_content}"
+    
+    model = _load_model()
+    emb = model.encode(full_content, show_progress_bar=False, normalize_embeddings=True)
+    
+    if isinstance(emb, np.ndarray):
+        embeddings = [emb.tolist()]
+    else:
+        embeddings = []
+
+    # Create dummy file path representing the context
+    dummy_path = path / "_folder_context_.txt"
+
+    return {
+        "file_path": str(dummy_path),
+        "file_name": "_folder_context_",
+        "parent_folder": path.name,
+        "parent_folder_path": str(path.resolve()),
+        "file_type": "txt",
+        "content_hash": _compute_hash(cleaned_content),
+        "embeddings": embeddings,
+    }
+

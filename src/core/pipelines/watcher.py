@@ -4,6 +4,17 @@ import time
 import logging
 from pathlib import Path
 
+# --- Headless PythonW Patch ---
+# When spawned via pythonw.exe, sys.stdout and sys.stderr are None.
+# If deep libraries (like tqdm/SentenceTransformer) check isatty(), it crashes.
+class DummyFile:
+    def write(self, x): pass
+    def flush(self): pass
+    def isatty(self): return False
+
+if sys.stdout is None: sys.stdout = DummyFile()
+if sys.stderr is None: sys.stderr = DummyFile()
+
 # --- Path Injection ---
 try:
     project_root = Path(__file__).resolve().parents[3]

@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 
 # --- Default Data ---
 DEFAULT_PATHS = {"organized_paths": [], "watch_paths": []}
-DEFAULT_CONFIG = {"faiss_built": False, "builder_busy": False, "alpha": 0.6, "beta": 0.3, "gamma": 0.05, "delta": 0.05}
+DEFAULT_CONFIG = {"faiss_built": False, "builder_busy": False}
 
 # --- File & Folder Ensurers ---
 def ensure_file(path: Path, default_data=None):
@@ -55,6 +55,16 @@ def ensure_faiss_files():
         faiss.write_index(index, str(index_path))
 
     ensure_file(metadata_path)
+
+def ensure_ml_models():
+    from src.core.utils.paths import get_models_dir
+    from sentence_transformers import SentenceTransformer
+    try:
+        logger.info("[Initializer] Syncing required Machine Learning models to local project cache...")
+        SentenceTransformer("all-MiniLM-L6-v2", cache_folder=str(get_models_dir()), local_files_only=False)
+        logger.info("[Initializer] ML model verified locally.")
+    except Exception as e:
+        logger.error(f"[Initializer] FATAL: Could not download the AI weights. Ensure you are connected to the internet or disable VPNs blocking huggingface.co. Error: {e}")
 
 # --- Reset Logic ---
 def reset_all():
@@ -90,6 +100,7 @@ def initialize(force_reset: bool = False):
         ensure_file(get_logs_path())
         ensure_faiss_files()
     ensure_unsorted_folder()
+    ensure_ml_models()
     logger.info("[Initializer] System initialized.")
     notify_system_event("System Initialized", "SortedPC is ready to use.")
 

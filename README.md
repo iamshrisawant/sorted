@@ -2,97 +2,85 @@
 
 ![Pipeline Diagram](assets/pipeline.png)
 
-## Abstract
-**Sorted** is a project designed to mirror human file organization logic using a **local-first, semantic approach**. Unlike traditional automation tools that rely on rigid regex or keyword matching, Sorted uses a **Bi-Encoder Neural Network (all-MiniLM-L6-v2)** to understand the *context* and *meaning* of your files.
+**Sorted** is an intelligent, completely offline background watcher that semantically organizes your files exactly how you would, using State-of-the-Art Machine Learning. 
 
-It observes how you organize your files and learns to replicate that logic automatically. It features **FAISS (Facebook AI Similarity Search)** for efficient vector indexing, **Rank-Weighted k-NN classification**, **Depth Bias**, and a **Confidence Threshold** system to ensure high-precision sorting. In its new iteration, it also includes interactive CLI management, background watcher integration via Windows Scheduled Tasks, and a feedback loop for continuous reinforcement learning.
+---
 
-## Key Features
+## 🚀 Quickstart & Setup
 
-*   **🔒 Local-First & Privacy-Focused**: All processing happens on your device. No data is sent to the cloud.
-*   **🧠 Semantic Understanding**: Understands file content (not just filenames) using state-of-the-art sentence transformers.
-*   **� FAISS Vector Search**: Uses FAISS CPU for ultra-fast, scalable vector indexing and retrieval.
-*   **🔁 Interactive Reinforcement Learning**: Includes a "View & Correct Moves" CLI menu. The system continuously adapts and refines its weights based on your corrections.
-*   **🛡️ Open-Set Recognition**: Files with low confidence scores are explicitly **rejected** and left in the Inbox, preventing misclassification.
+To get the watcher running on your local machine, follow these steps:
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/yourusername/sorted.git
+cd sorted
+```
+
+### 2. Prepare the Virtual Environment
+It is highly recommended to isolate the dependencies using a Python virtual environment:
+```powershell
+# Windows
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 3. First Launch & Offline Initialization
+```powershell
+python src/main.py
+```
+> **Note on Offline-First Architecture**: During this very first boot, the Initializer will securely download the 80MB HuggingFace Bi-Encoder model directly into the project's internal `src/core/models/` folder. Once downloaded, **SortedPC is 100% portable and natively offline**, never requiring an internet connection or exposing your data again!
+
+---
+
+## 💻 Usage & CLI Guide
+
+SortedPC is entirely managed through a simple, interactive CLI. 
+
+### 1. Map your Knowledge Base
+Before the AI can sort your files, it needs to see how you think. In the CLI, navigate to **Manage Sorting Destinations** and add existing folders that already contain your properly sorted documents. The system will read them and build its FAISS vector memory.
+
+### 2. Start the Background Watcher
+Navigate to **Manage Background Watcher**. Set your "Inbox" (like your `Downloads` folder). You can start the headless watcher manually, or register it seamlessly into Windows Task Scheduler so it boots silently in the background every time you log in.
+
+### 3. Review History & Teach the AI
+If the AI ever drops a file into an unexpected folder or falls back safely to the Unsorted bin, go to **Review Sorting History & Fix Mistakes**. 
+Whenever you manually enter a new correct folder path to fix a mistake, the **Semantic Auto-Discovery** loop intercepts it, physically moves the file, dynamically maps the new folder into its tracking database, and instantly indexes it so it never makes the same mistake again!
+
+---
+
+## 🧠 Abstract & The Science Behind It
+
+Unlike traditional automation tools that rely on rigid regex or keyword matching, Sorted uses a **Bi-Encoder Neural Network (all-MiniLM-L6-v2)** to understand the *true context* and *meaning* of your files.
+
+It pairs this with **FAISS (Facebook AI Similarity Search)** for ultra-fast, scalable vector retrieval, and a **Rank-Weighted k-NN classification** algorithm integrated with a **Confidence Threshold**. This ensures high-precision sorting, meaning files with low semantic confidence are explicitly **rejected** back to your Inbox rather than misclassified.
+
+## ✨ Key Features
+
+*   **🔒 Local-First & Privacy-Focused**: All processing happens entirely on your CPU. No data is sent to the cloud.
+*   **🧠 Semantic Understanding**: Maps document concepts (not just filenames) using modern sentence transformers.
+*   **⚡ Ultra-Fast FAISS Memory**: Utilizes FAISS for scalable, split-second similarity search, even across massive folder hierarchies.
+*   **🔁 Auto-Discovery Feedback Loop**: The system learns organically by observing the new folders you specify during manual corrections and immediately adding them to its semantic sightline.
 *   **📂 Hierarchical Awareness**: Implements a "Depth Bias" to prefer specific sub-folders over generic root folders when semantic similarity is close.
-*   **⚡ Background Watcher & Windows Integration**: Runs seamlessly in the background using `pythonw.exe`. Includes automatic registration via Windows Scheduled Tasks so it monitors your folders from system startup, with desktop notifications to keep you informed.
+*   **🖥️ Invisible Windows Integration**: Runs seamlessly in the background using `pythonw.exe`. Sends native Windows desktop notifications (via `plyer`) to alert you when background sorting completes.
 
-## Architecture Pipeline
+## ⚙️ Architecture Pipeline
 
-1.  **Inbox Monitoring**: The background watcher observes your configured inbox directory.
-2.  **Extraction**: Text is extracted flexibly from documents (PDF, DOCX, TXT) and smartly truncated to maintain efficiency.
-3.  **Encoding**: The models encode document context into a high-dimensional vector.
-4.  **Retrieval**: FAISS queries the existing knowledge base for the semantically nearest neighbors.
+1.  **Inbox Monitoring**: The Windows background watcher monitors your designated unsorted folder via file-system events.
+2.  **Extraction**: Text is flexibly extracted from documents (`.pdf`, `.docx`, `.pptx`, `.xlsx`, `.csv`, `.md`, `.txt`, `.html`) and system/code files are rigorously ignored.
+3.  **Encoding**: The all-MiniLM-L6-v2 model encodes document text into a 384-dimensional mathematical vector.
+4.  **Retrieval**: FAISS queries your existing destination folders for the closest semantic neighbors.
 5.  **Classification**: 
     *   **Rank-Weighted k-NN**: Neighbors are weighted by their rank (closer neighbors vote more).
-    *   **Depth Bias**: Deeper folder paths get a slight score boost to encourage specific sorting.
+    *   **Depth Bias**: Deeper folder trees get a slight score boost to encourage specific organization.
 6.  **Decision**:
-    *   If `Score > Confidence Threshold`: **Move** to target folder.
+    *   If `Score > Confidence Threshold`: **Move** seamlessly to target folder.
     *   If `Score < Confidence Threshold`: **Reject** (leave in Inbox).
 
-## Installation
+## 🔬 Benchmarking & Future Roadmap
 
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/yourusername/sorted.git
-    cd sorted
-    ```
-
-2.  **Install Dependencies**:
-    Recommendation: Use a virtual environment.
-    ```bash
-    python -m venv venv
-    venv\Scripts\activate
-    pip install -r requirements.txt
-    ```
-
-3.  **Launch SortedPC**:
-    ```bash
-    python src/main.py
-    ```
-
-## Usage
-
-SortedPC provides an interactive CLI (`src/main.py`) that governs the entire application lifecycle. 
-
-### 1. Initialize the Knowledge Base 
-When you start the app, you will be prompted to add **Organized Paths** (folders containing manually sorted files). The system uses these to build its initial FAISS vector index.
-
-### 2. Manage the Watcher
-Through the main menu, add your "Inbox" folder where new, unsorted files arrive. You can then:
-*   Start or Stop the Background Watcher.
-*   Register the Watcher to run on Windows Startup via scheduled tasks.
-
-### 3. Correct & Reinforce
-SortedPC allows you to view a history of automated file moves. If a file was sorted incorrectly:
-*   Use the **View & Correct Moves** menu to correct the path.
-*   Run the **Learn from Corrections** action so the system tweaks its ranking weights and learns your true preference.
-
-### 4. Benchmarking & Calibration (For Researchers)
-The original research scripts are fully aligned with the production software and are preserved in the `evaluation/` directory:
-*   `python evaluation/benchmark.py`: Evaluates performance against synthetic documents and academic datasets (20 Newsgroups).
-*   `python evaluation/calibration.py`: Calculates the optimal F1 confidence threshold.
-
-*Please see [EVALUATIONS.md](EVALUATIONS.md) for the complete quantitative analysis proving Sorted's dominance over traditional methods.*
-
-### 5. Future Roadmap
-Looking to contribute or see where the project is heading? See [futureworks.md](futureworks.md) for planned SOTA enhancements like Zero-Shot initialization and Hybrid Search.
-
-## Project Structure
-
-```
-Sorted/
-├── src/
-│   ├── main.py               # Interactive CLI and Application Entrypoint
-│   ├── core/
-│   │   ├── pipelines/        # Builder, Initializer, Sorter, Reinforcer, Watcher
-│   │   └── utils/            # Indexing, Logging, Notifications, Path Mgmt
-├── evaluation/               # Testing suite and mathematical benchmarks
-├── assets/                   # Project visual assets
-├── EVALUATIONS.md            # Verified sorting metrics vs ML baselines
-├── futureworks.md            # SOTA Development Roadmap
-└── requirements.txt          # Updated System Dependencies
-```
+*   **Calibrations:** The `evaluation/` directory preserves the original research testing suites used to benchmark the system against academic datasets (20 Newsgroups). See [EVALUATIONS.md](EVALUATIONS.md) for complete quantitative analysis.
+*   **Future Development:** See [futureworks.md](futureworks.md) for planned SOTA enhancements like Zero-Shot initialization and Hybrid Keyword Search.
 
 ## License
 MIT License

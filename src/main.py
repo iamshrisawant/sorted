@@ -585,6 +585,28 @@ def main_menu():
             print("Goodbye.")
             break
 
+import argparse
+
+def launch_ui():
+    print(Fore.CYAN + "Starting Desktop UI..." + Style.RESET_ALL)
+    # We will import the desktop launcher here to avoid circular imports / missing deps
+    try:
+        from src.api.desktop import run_desktop_app
+        run_desktop_app()
+    except ImportError as e:
+        print(Fore.RED + f"Failed to load UI components: {e}")
+        print(Fore.YELLOW + "Falling back to CLI...")
+        main_menu()
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="SortedPC Semantic Watcher")
+    parser.add_argument("--cli", action="store_true", help="Launch the terminal CLI instead of the Desktop UI")
+    args = parser.parse_args()
+
+    # Always initialize models/folders first
     startup_check()
-    main_menu()
+
+    if args.cli:
+        main_menu()
+    else:
+        launch_ui()

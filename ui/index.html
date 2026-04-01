@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SortedPC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <!-- Theme loading script at top to prevent flash -->
+    <script>
+        const currTheme = localStorage.getItem('sortedpc-theme') || 'system';
+        document.documentElement.setAttribute('data-theme', currTheme);
+    </script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="logo-icon">
+                    <path d="M21 7V17C21 20 19.5 22 16 22H8C4.5 22 3 20 3 17V7C3 4 4.5 2 8 2H16C19.5 2 21 4 21 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14.5 4.5V6.5C14.5 7.6 15.4 8.5 16.5 8.5H18.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M8 13H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M8 17H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2>SortedPC</h2>
+            </div>
+
+            <ul class="nav-links">
+                <li class="nav-item active" data-target="dashboard">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+                    Dashboard
+                </li>
+                <li class="nav-item" data-target="destinations">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    Knowledge Base
+                </li>
+                <li class="nav-item" data-target="history">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+                    History & Training
+                </li>
+                <li class="nav-item" data-target="settings">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    System Settings
+                </li>
+            </ul>
+
+            <div class="watcher-status-card" id="sidebar-status-card">
+                <div class="status-indicator"></div>
+                <div class="status-text">
+                    <span class="status-title">System Offline</span>
+                    <span class="status-sub">Service not running</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- DASHBOARD -->
+            <section id="dashboard" class="view active">
+                <header class="view-header">
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p>Overview of your local semantic sorting engine.</p>
+                    </div>
+                    <button class="primary-btn" id="btn-open-sort-modal">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Manual Sort...
+                    </button>
+                </header>
+
+                <div class="stats-grid">
+                    <div class="stat-card panel">
+                        <h3>Watcher State</h3>
+                        <div class="stat-value" id="stat-state">Offline</div>
+                        <div class="stat-meta" id="stat-state-meta">Task unregistered</div>
+                    </div>
+                    <div class="stat-card panel">
+                        <h3>Knowledge Hubs</h3>
+                        <div class="stat-value" id="stat-hubs">0</div>
+                        <div class="stat-meta">Active routing destinations</div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3>Service Controls</h3>
+                    <div class="action-buttons">
+                        <button class="secondary-btn" id="btn-start-watcher">Start</button>
+                        <button class="secondary-btn" id="btn-restart-watcher">Restart</button>
+                        <button class="danger-btn" id="btn-stop-watcher">Stop</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- KNOWLEDGE BASE -->
+            <section id="destinations" class="view">
+                <header class="view-header">
+                    <div>
+                        <h1>Knowledge Base</h1>
+                        <p>Tell the AI where your files belong and how you organize them.</p>
+                    </div>
+                    <button class="primary-btn" id="btn-add-dest">
+                        Add Destination
+                    </button>
+                </header>
+                
+                <div id="dest-add-form" class="panel hidden">
+                    <div class="setting-header">Add New Sorting Path</div>
+                    <div class="setting-desc">The AI will use FAISS to route relevant files into this directory.</div>
+                    
+                    <div class="form-group" style="margin-top:1rem;">
+                        <label>Absolute Folder Path:</label>
+                        <input type="text" id="dest-path" class="input-field" placeholder="C:\Users\Username\Documents\Invoices">
+                    </div>
+                    <div class="form-group">
+                        <label>Context Rule (Optional details about what belongs here):</label>
+                        <textarea id="dest-context" class="input-field" rows="2" placeholder="e.g. Bills, financial receipts, tax forms"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button class="secondary-btn" id="btn-cancel-dest">Cancel</button>
+                        <button class="primary-btn" id="btn-save-dest">Save & Index</button>
+                    </div>
+                </div>
+
+                <div class="hubs-grid" id="destinations-list">
+                    <!-- Dynamic -->
+                </div>
+            </section>
+
+            <!-- HISTORY & CORRECTIONS -->
+            <section id="history" class="view">
+                <header class="view-header">
+                    <div>
+                        <h1>History & Training</h1>
+                        <p>Review recent actions or manually correct mistakes to organically train the system.</p>
+                    </div>
+                </header>
+                
+                <div class="history-list" id="history-container">
+                    <!-- Dynamic -->
+                </div>
+            </section>
+
+            <!-- SETTINGS -->
+            <section id="settings" class="view">
+                <header class="view-header">
+                    <div>
+                        <h1>System Settings</h1>
+                        <p>Configure daemon properties, paths, and interface themes.</p>
+                    </div>
+                </header>
+
+                <div class="settings-grid">
+                    <!-- Theme Settings -->
+                    <div class="panel">
+                        <div class="setting-block">
+                            <div class="setting-header">Interface Theme</div>
+                            <div class="setting-desc">Customize the visual appearance.</div>
+                            <div class="theme-options" style="margin-top:0.5rem;">
+                                <button class="theme-btn" data-theme-val="system">System</button>
+                                <button class="theme-btn" data-theme-val="light">Light</button>
+                                <button class="theme-btn" data-theme-val="dark">Dark</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Watch Paths -->
+                    <div class="panel">
+                        <div class="setting-block">
+                            <div class="setting-header">Watched Folders</div>
+                            <div class="setting-desc">Folders the daemon constantly monitors for newly added files (e.g. your Downloads folder).</div>
+                            
+                            <div class="form-group" style="display:flex; gap:0.5rem; margin-top:0.5rem; margin-bottom: 0;">
+                                <input type="text" id="watch-path-input" class="input-field" placeholder="Path to watch...">
+                                <button class="secondary-btn" id="btn-add-watch-path">Add</button>
+                            </div>
+                            
+                            <div class="list-container" id="watch-paths-list">
+                                <!-- Dynamic watch paths -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Startup Task -->
+                    <div class="panel">
+                        <div class="setting-block">
+                            <div class="setting-header">Windows Background Task</div>
+                            <div class="setting-desc">Launch the daemon silently in the background every time you boot your PC.</div>
+                            <div class="action-buttons">
+                                <button class="secondary-btn" id="btn-register">Register Startup Hook</button>
+                                <button class="danger-btn" id="btn-unregister">Remove Hook</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Reset -->
+                    <div class="panel" style="border-left: 3px solid var(--danger);">
+                        <div class="setting-block">
+                            <div class="setting-header" style="color: var(--danger);">Danger Zone</div>
+                            <div class="setting-desc">Halts all processes and irreversibly destroys the database index and all system files.</div>
+                            <div class="action-buttons">
+                                <button class="danger-btn" id="btn-open-reset-modal">Factory Reset System</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Notification system -->
+    <div id="toast-container"></div>
+
+    <!-- Modal: Sort Now -->
+    <div id="sort-modal" class="modal-overlay">
+        <div class="modal">
+            <h3>Manual Force Sort</h3>
+            <p class="modal-desc">This will recursively scan and sort files. If left blank, it defaults to the main unsorted folder.</p>
+            <div class="form-group">
+                <label>Folder Path to Sort (Optional):</label>
+                <input type="text" id="sort-target-path" class="input-field" placeholder="Leave blank for Default Inbox">
+            </div>
+            <div class="form-actions">
+                <button class="secondary-btn" onclick="document.getElementById('sort-modal').classList.remove('active')">Cancel</button>
+                <button class="primary-btn" id="btn-submit-sort">Start Sorting</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Fix Mistake -->
+    <div id="correction-modal" class="modal-overlay">
+        <div class="modal">
+            <h3>Fix Sorting Mistake</h3>
+            <p id="correction-filename" style="font-family: monospace; font-size: 0.85rem; margin-bottom:1rem;"></p>
+            <p class="modal-desc">Specify the exact folder this file should have gone to. The AI will learn this rule instantly.</p>
+            <div class="form-group">
+                <label>Correct Folder Path:</label>
+                <input type="text" id="correction-path" class="input-field" placeholder="C:\Correct\Folder\Here">
+            </div>
+            <div class="form-actions">
+                <button class="secondary-btn" onclick="document.getElementById('correction-modal').classList.remove('active')">Cancel</button>
+                <button class="primary-btn" id="btn-submit-correction">Teach & Move</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Reset System -->
+    <div id="reset-modal" class="modal-overlay">
+        <div class="modal">
+            <h3 style="color: var(--danger);">Reset System</h3>
+            <p class="modal-desc">This action cannot be undone. It will delete your config, Faiss indexing cache, and all knowledge contexts.</p>
+            <div class="form-group">
+                <label>Type "reset" to confirm:</label>
+                <input type="text" id="reset-confirmation" class="input-field" placeholder="">
+            </div>
+            <div class="form-actions">
+                <button class="secondary-btn" onclick="document.getElementById('reset-modal').classList.remove('active')">Cancel</button>
+                <button class="danger-btn" id="btn-submit-reset">Erase Everything</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/app.js"></script>
+</body>
+</html>

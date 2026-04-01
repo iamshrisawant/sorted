@@ -58,10 +58,28 @@ def ensure_faiss_files():
 
 def ensure_ml_models():
     from src.core.utils.paths import get_models_dir
+    
+    models_dir = get_models_dir()
+    # Check if we already have downloaded any models into the cache
+    if models_dir.exists() and any(models_dir.iterdir()):
+        # We assume the model is downloaded. processor.py will load it using local_files_only=True
+        logger.info("[Initializer] ML model verified locally. Skipping network sync for fast startup.")
+        return
+
     from sentence_transformers import SentenceTransformer
+    import os
+    import warnings
+    import logging
+    
     try:
         logger.info("[Initializer] Syncing required Machine Learning models to local project cache...")
-        SentenceTransformer("all-MiniLM-L6-v2", cache_folder=str(get_models_dir()), local_files_only=False)
+        os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+        logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            SentenceTransformer("all-MiniLM-L6-v2", cache_folder=str(models_dir), local_files_only=False)
+            
         logger.info("[Initializer] ML model verified locally.")
     except Exception as e:
         logger.error(f"[Initializer] FATAL: Could not download the AI weights. Ensure you are connected to the internet or disable VPNs blocking huggingface.co. Error: {e}")

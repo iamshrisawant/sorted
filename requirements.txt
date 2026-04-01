@@ -27,7 +27,9 @@ rich                    # Better CLI display
 # --- GUI support ---
 # PySide6                 # Qt-based desktop UI
 # shiboken6               # Needed by PySide6
-
+pywebview                 # Native desktop HTML UI Wrapper
+fastapi                   # Web backend
+uvicorn                   # Web server
 # --- Feedback, templating, output formatting ---
 Jinja2                  # Prompt templating (RAG, responses)
 

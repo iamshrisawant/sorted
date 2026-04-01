@@ -2,7 +2,7 @@
 
 ![Pipeline Diagram](assets/pipeline.png)
 
-**Sorted** is an intelligent, completely offline background watcher that semantically organizes your files exactly how you would, using State-of-the-Art Machine Learning. 
+**Sorted** is an intelligent, completely offline background watcher that semantically organizes your files exactly how you would, using State-of-the-Art Machine Learning. It now features a professional, minimalist desktop interface alongside its robust legacy CLI.
 
 ---
 
@@ -25,62 +25,54 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-### 3. First Launch & Offline Initialization
-```powershell
-python src/main.py
-```
-> **Note on Offline-First Architecture**: During this very first boot, the Initializer will securely download the 80MB HuggingFace Bi-Encoder model directly into the project's internal `src/core/models/` folder. Once downloaded, **SortedPC is 100% portable and natively offline**, never requiring an internet connection or exposing your data again!
+### 3. Launching the System
+SortedPC dynamically chooses between a native Desktop UI or a terminal CLI based on your parameters.
+
+*   **Default (Desktop UI):** `python src/main.py`
+    *   Launches a standalone, minimalist window (via `pywebview`) powered by a local FastAPI bridge.
+*   **Legacy (Terminal CLI):** `python src/main.py --cli`
+    *   Boots the original interactive matrix-style CLI for terminal power users.
+
+> **Note on Optimized Startup**: During the first boot, the system downloads the 80MB HuggingFace Bi-Encoder model into `src/core/models/`. On subsequent launches, the system bypasses network checks and performs an instant local verification for a 100% offline and high-performance experience.
 
 ---
 
-## 💻 Usage & CLI Guide
+## 💻 Features & Usage
 
-SortedPC is entirely managed through a simple, interactive CLI. 
+### 1. Unified Management
+Whether using the Desktop UI or the CLI, you can seamlessly manage your system:
+*   **Knowledge Base**: Add destination folders and define "context rules" (e.g., "financial statements") to help the AI understand your organizational logic.
+*   **Background Watcher**: Register the daemon to monitor folder events (like your `Downloads` folder).
+*   **OS Integration**: Seamlessly register the system as a Windows Startup task for persistent background sorting.
 
-### 1. Map your Knowledge Base
-Before the AI can sort your files, it needs to see how you think. In the CLI, navigate to **Manage Sorting Destinations** and add existing folders that already contain your properly sorted documents. The system will read them and build its FAISS vector memory.
+### 2. Minimalist Aesthetic
+The Desktop UI is designed with a warm, distraction-free monochrome aesthetic (inspired by Claude and Notion). 
+*   **Multi-Theme Support**: Toggle between **Light**, **Dark**, or **System** themes in the Settings panel.
+*   **Functional Colors**: Uses standardized indicators (Green/Red/Blue) for system status and active sorting tasks.
 
-### 2. Start the Background Watcher
-Navigate to **Manage Background Watcher**. Set your "Inbox" (like your `Downloads` folder). You can start the headless watcher manually, or register it seamlessly into Windows Task Scheduler so it boots silently in the background every time you log in.
-
-### 3. Review History & Teach the AI
-If the AI ever drops a file into an unexpected folder or falls back safely to the Unsorted bin, go to **Review Sorting History & Fix Mistakes**. 
-Whenever you manually enter a new correct folder path to fix a mistake, the **Semantic Auto-Discovery** loop intercepts it, physically moves the file, dynamically maps the new folder into its tracking database, and instantly indexes it so it never makes the same mistake again!
+### 3. Review & Training Loop
+If the AI ever misclassifies a file, use the **History & Training** panel (or CLI menu) to fix the mistake. When you specify a correct folder, the **Semantic Auto-Discovery** loop instantly indexes the new context so the AI never makes the same mistake again.
 
 ---
 
-## 🧠 Abstract & The Science Behind It
+## 🧠 The Science Behind It
 
 Unlike traditional automation tools that rely on rigid regex or keyword matching, Sorted uses a **Bi-Encoder Neural Network (all-MiniLM-L6-v2)** to understand the *true context* and *meaning* of your files.
 
 It pairs this with **FAISS (Facebook AI Similarity Search)** for ultra-fast, scalable vector retrieval, and a **Rank-Weighted k-NN classification** algorithm integrated with a **Confidence Threshold**. This ensures high-precision sorting, meaning files with low semantic confidence are explicitly **rejected** back to your Inbox rather than misclassified.
 
-## ✨ Key Features
+## ✨ Technical Highlights
 
-*   **🔒 Local-First & Privacy-Focused**: All processing happens entirely on your CPU. No data is sent to the cloud.
-*   **🧠 Semantic Understanding**: Maps document concepts (not just filenames) using modern sentence transformers.
-*   **⚡ Ultra-Fast FAISS Memory**: Utilizes FAISS for scalable, split-second similarity search, even across massive folder hierarchies.
-*   **🔁 Auto-Discovery Feedback Loop**: The system learns organically by observing the new folders you specify during manual corrections and immediately adding them to its semantic sightline.
-*   **📂 Hierarchical Awareness**: Implements a "Depth Bias" to prefer specific sub-folders over generic root folders when semantic similarity is close.
-*   **🖥️ Invisible Windows Integration**: Runs seamlessly in the background using `pythonw.exe`. Sends native Windows desktop notifications (via `plyer`) to alert you when background sorting completes.
+*   **🔒 Local-First & Privacy-Focused**: Processing happens entirely on your CPU. No data ever leaves your machine.
+*   **⚡ Optimized FAISS Indexing**: Scalable retrieval even across massive folder hierarchies.
+*   **🖥️ Hybrid Architecture**: Built with a FastAPI backend and a `pywebview` frontend, keeping the core ML logic decoupled from the presentation layer.
+*   **🔁 Organic Feedback Loop**: Learns from manual corrections to dynamically expand its semantic sightline.
 
-## ⚙️ Architecture Pipeline
+---
 
-1.  **Inbox Monitoring**: The Windows background watcher monitors your designated unsorted folder via file-system events.
-2.  **Extraction**: Text is flexibly extracted from documents (`.pdf`, `.docx`, `.pptx`, `.xlsx`, `.csv`, `.md`, `.txt`, `.html`) and system/code files are rigorously ignored.
-3.  **Encoding**: The all-MiniLM-L6-v2 model encodes document text into a 384-dimensional mathematical vector.
-4.  **Retrieval**: FAISS queries your existing destination folders for the closest semantic neighbors.
-5.  **Classification**: 
-    *   **Rank-Weighted k-NN**: Neighbors are weighted by their rank (closer neighbors vote more).
-    *   **Depth Bias**: Deeper folder trees get a slight score boost to encourage specific organization.
-6.  **Decision**:
-    *   If `Score > Confidence Threshold`: **Move** seamlessly to target folder.
-    *   If `Score < Confidence Threshold`: **Reject** (leave in Inbox).
-
-## 🔬 Benchmarking & Future Roadmap
-
-*   **Calibrations:** The `evaluation/` directory preserves the original research testing suites used to benchmark the system against academic datasets (20 Newsgroups). See [EVALUATIONS.md](EVALUATIONS.md) for complete quantitative analysis.
-*   **Future Development:** See [futureworks.md](futureworks.md) for planned SOTA enhancements like Zero-Shot initialization and Hybrid Keyword Search.
+## 🔬 Research & Future
+*   **Calibrations:** The `evaluation/` directory contains research testing suites used to benchmark the system against academic datasets. See [EVALUATIONS.md](EVALUATIONS.md).
+*   **Roadmap:** See [futureworks.md](futureworks.md) for long-term objectives like Multi-Modal perception and Local RAG modeling.
 
 ## License
 MIT License

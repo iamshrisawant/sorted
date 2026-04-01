@@ -10,10 +10,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-def get_app_icon():
-    icon_path = ROOT_DIR / "ui" / "assets" / "icon.ico"
-    return str(icon_path) if icon_path.exists() else None
-
 def notify_file_sorted(file_path: str, final_folder: str, similar_folders: list):
     logger.info(f"File sorted: {Path(file_path).name} -> {final_folder}")
     if not TOASTS_ENABLED:
@@ -23,7 +19,6 @@ def notify_file_sorted(file_path: str, final_folder: str, similar_folders: list)
             title=f"Sorted: {Path(file_path).name}",
             message=f"Destination: {final_folder}",
             app_name="SortedPC",
-            app_icon=get_app_icon(),
             timeout=5
         )
     except Exception as e:
@@ -38,7 +33,6 @@ def notify_system_event(title: str, message: str):
             title=title,
             message=message,
             app_name="SortedPC",
-            app_icon=get_app_icon(),
             timeout=5
         )
     except Exception as e:

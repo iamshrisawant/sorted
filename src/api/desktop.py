@@ -25,13 +25,10 @@ def run_desktop_app():
 
     # Resolve UI paths
     ui_path = Path(PROJECT_ROOT) / "ui" / "index.html"
-    icon_path = Path(PROJECT_ROOT) / "assets" / "icon.ico"
     
     if not ui_path.exists():
         print(f"Error: Could not find UI at {ui_path}")
         return
-
-    icon_arg = str(icon_path.resolve()) if icon_path.exists() else None
 
     # Create the window
     window = webview.create_window(
@@ -43,7 +40,7 @@ def run_desktop_app():
         easy_drag=True,
         background_color='#0B0F19'
     )
-    webview.start(debug=False, icon=icon_arg)
+    webview.start(debug=False)
 
 if __name__ == "__main__":
     run_desktop_app()

@@ -1,33 +1,37 @@
-# SortedPC: Future Work
+# SortedPC: Future Works
 
-The current implementation establishes a stable, offline-first semantic sorting engine for text-based files. To evolve this project into a comprehensive, multi-modal knowledge product, development must proceed incrementally. New additions will act as decoupled layers, latching onto the existing core (`sorter.py`, `builder.py`, `watcher.py`) without requiring foundational rewrites.
+The current implementation provides a stable, offline-first semantic sorting engine for text files. The ultimate vision for this product is to build a system that seamlessly mimics the user's own mental model of file and knowledge organization. 
 
-Here is a practical, grounded roadmap for sequenced development.
+To achieve this, the project must evolve incrementally. However, the exact technical implementations for future phases are still pending technical evaluation and architectural decision.
 
-## Phase 1: Presentation & OS Abstraction Layer
-*Decoupling background logic to enable visual interaction and cross-platform use.*
+The following serves as a strategic roadmap for incoming capabilities, rather than a definitive task list. New additions will be prototyped and benchmarked heavily to ensure they safely latch onto the existing core (`sorter.py`, `builder.py`, `watcher.py`) without disrupting its stability.
 
-*   **Unified OS Daemon:** Transition away from standalone Windows `.bat` files and `schtasks.exe`. Implement cross-platform service management generating `systemd` (Linux), `launchd` (macOS), or native Windows Services for robust startup and lifecycle management.
-*   **Local API / State Manager:** Introduce a lightweight local interface (e.g., an underlying FastAPI service or direct IPC). This layer will safely read configuration, index states, and `logs.jsonl` without directly interfering with the active file watchdog.
-*   **The UI Dashboard:** Instead of generating entirely new application logic for the frontend, build a UI (Tauri, Electron, or PySide6) that acts as a client to the Local API. This provides a visual "Inbox" showing recently sorted items, allowing users to verify semantic choices, "Undo" mistakes (which actively feeds corrections back to the index), and manage folders without needing the CLI.
+## Phase 1: Presentation & OS Independence
+*Goal: Decouple the background logic to enable visual interaction and cross-platform use.*
 
-## Phase 2: Multi-Modal Support (Images & Multimedia)
-*Expanding comprehension beyond text using established cross-modal embeddings.*
+*   **OS Service Management:** Evaluating robust alternatives to standalone Windows `.bat` files and `schtasks.exe`. The objective is to implement the most effective, lightweight mechanism to safely manage persistent background tasks across OS environments (e.g., Windows Services, `systemd`, `launchd`).
+*   **API / State Abstraction:** Designing the structure for a local bridge (e.g., FastAPI, local IPC) capable of reading configuration and index states to serve a front-end without blocking the core Python watchdog loop.
+*   **User Interface Options:** Benchmarking cross-platform desktop frameworks (Tauri, Electron, PySide6) to build a visual "Inbox." The goal is a UI that lets users correct the AI's sorting (to train it) without touching a terminal, with the final architectural binding and stack to be decided based on performance tests.
 
-*   **Visual Vectorization:** Rather than overhauling the FAISS index, introduce a lightweight, cross-modal model (like a quantized `CLIP` using `sentence-transformers`). When the processor encounters an image, it skips text extraction, embeds the image directly, and passes the vector to the identical FAISS cluster used for text.
-*   **Hybrid OCR Pipelines:** For distinct document images (receipts, scanned invoices), integrate local OCR (e.g., EasyOCR/Tesseract). Text parsing requires significantly less computational power than inference on a vision model, acting as a practical, lightweight fallback.
-*   **Media Processing Queues:** Videos and large multimedia require heavy extraction (like Whisper for audio, or frame-sampling for video). Introduce an asynchronous, low-priority processing queue to ensure heavy inference doesn't block the real-time watchdog sorting of standard files.
+## Phase 2: Multi-Modal Percerption
+*Goal: Expand the system's comprehension beyond bare text documents to mimic how users visually process images and media.*
 
-## Phase 3: Relational Context & Deterministic Metadata
-*Combining semantic meaning ("What") with factual context ("Who, When, Where").*
+*   **Visual Embeddings:** Measuring the local performance impact and feasibility of cross-modal models (like quantized CLIP). The objective is to embed images into the identical FAISS vector space used for text, pending rigorous benchmark testing.
+*   **Fallback Pipelines & OCR:** For basic document constraints (receipts, scans), testing the efficiency of running local OCR tools (EasyOCR/Tesseract) as a computationally cheaper alternative to full vision models.
+*   **Media Queuing Mechanisms:** Architecting asynchronous workflows. To handle processing for heavy audio (Whisper) or video, we need to establish queuing mechanisms that prevent system drain and ensure real-time sorting remains unblocked.
 
-*   **Metadata Extraction Engine:** Before embedding semantics, extract standard metadata: EXIF GPS coordinates, ID3 tags, and standard OS creation/modification timestamps.
-*   **Relational Mapping (SQLite):** Instead of forcing exact parameters into a vector space, store file relationships in a fast local relational format (SQLite).
-*   **Hybrid Scoring:** When sorting files, system logic utilizes both scores. If a file is semantically categorized as "Party," but its metadata strictly links its time and location properties to the "Wedding 2024" folder, the deterministic context acts as an override or multiplier to the raw FAISS guess.
+## Phase 3: Relational Context & Metadata
+*Goal: Combine semantic meaning ("What is this?") with deterministic, relational context ("Who, When, Where?").*
 
-## Phase 4: Conversational Retrieval (Local RAG)
-*Upgrading the file sorter into an interactive private knowledge assistant.*
+*   **Contextual Data Modeling:** Defining data models to map relationships between files, specific projects, and timelines to mimic how a user naturally groups connected events.
+*   **Hybrid Data Structures:** Determining the optimal paradigm for storing this hard data. The architectural choice between an embedded relational database (SQLite/DuckDB) or a lightweight local graph will be made based on system load testing.
+*   **Weighted Scoring Systems:** Formulating algorithms to mathematically combine a FAISS semantic guess with strict metadata constraints (like EXIF GPS or creation dates) to prevent the AI from making logically impossible sorting decisions.
 
-*   **Semantic Search:** Expand the UI to include a localized search function that queries the FAISS index directly, allowing users to find files based on natural language concepts.
-*   **Constrained Local LLM:** Introduce a heavily quantized local LLM (e.g., via `llama.cpp`) focusing purely on intent routing and query formulation, rather than acting as a loose chatbot.
-*   **Conversational Operations:** When a user types *"Find my medical documents from last August"*, the local LLM parses the command to execute a hybrid retrieval: querying the SQLite database for `Time = August` and FAISS for `Context = Medical`. It returns the exact file references to the UI. Since everything remains fully offline, PII reasoning and retrieval remains completely secure.
+## Phase 4: Conversational Retrieval
+*Goal: Evolve the sorter into an interactive, completely private knowledge assistant.*
+
+*   **Local RAG Modeling:** Drafting architectural models for a Retrieval-Augmented Generation system that operates entirely offline, using the FAISS index as the core knowledge base.
+*   **Constrained Local LLMs:** Assessing the integration of heavily quantized local models (e.g., `llama.cpp`). The engineering focus will be tightly constrained on whether a small LLM can reliably translate a user command (*"Find my medical documents from August"*) into an exact SQL/Vector query, avoiding the bloat of a standard conversational chatbot.
+
+---
+*Note: This roadmap reflects long-term strategic objectives. The specific technical stack and execution methods discussed here are pending final prototyping, system evaluation, and architectural decision.*

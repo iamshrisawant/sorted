@@ -61,15 +61,12 @@ def get_models_dir() -> Path:
 def get_unsorted_folder() -> Path:
     return Path.home() / "Documents" / "sortedpc" / "unsorted"
 
-def get_xml() -> Path:
-    return ROOT_DIR / "src" / "config.xml"
-
 def get_project_root_for_imports() -> Path:
     return ROOT_DIR.parent.parent.parent.parent
 
 
 def get_watcher_log() -> Path:
-    return ROOT_DIR / "src" / "watcher_launch.log"
+    return DATA_DIR / "watcher_launch.log"
 
 def get_watch_paths() -> List[str]:
     return _load_list_from_json(PATHS_FILE, "watch_paths")

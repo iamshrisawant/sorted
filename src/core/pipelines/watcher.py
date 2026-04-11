@@ -50,15 +50,21 @@ TEMP_EXTENSIONS = {'.tmp', '.crdownload', '.part'}
 def is_pid_alive(pid: int) -> bool:
     if pid <= 0: return False
     
-    import ctypes
-    # PROCESS_QUERY_LIMITED_INFORMATION (0x1000) is enough to check if process exists
-    # and is more likely to succeed for processes owned by other users.
-    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-    h_process = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
-    if h_process:
-        ctypes.windll.kernel32.CloseHandle(h_process)
-        return True
-    return False
+    import platform
+    if platform.system() == "Windows":
+        import ctypes
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        h_process = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if h_process:
+            ctypes.windll.kernel32.CloseHandle(h_process)
+            return True
+        return False
+    else:
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
 
 def get_pid_file() -> Path:
     return get_config_file().parent / "watcher.pid"

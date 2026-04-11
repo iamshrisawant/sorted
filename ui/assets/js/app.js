@@ -94,9 +94,62 @@ async function fetchStatus() {
         document.getElementById('stat-state-meta').textContent = data.registered ? 'Registered to Startup' : 'Not registered to Startup';
         document.getElementById('stat-hubs').textContent = data.total_destinations;
         
+        // Show onboarding if no rules exist, exactly once per session
+        if (!window.onboardingShown && data.watch_paths.length === 0 && data.total_destinations === 0) {
+            document.getElementById('onboarding-modal').classList.add('active');
+            window.onboardingShown = true;
+        }
+        
     } catch (e) {
         console.error("Backend offline", e);
     }
+}
+
+// --- Folder Pickers ---
+async function pickFolderNative(inputId) {
+    if (window.pywebview && window.pywebview.api) {
+        const path = await window.pywebview.api.pick_folder();
+        if (path) document.getElementById(inputId).value = path;
+    } else {
+        showToast("Native picker unavailable in browser environment.", "error");
+    }
+}
+
+// Onboarding Picker
+const obPickBtn = document.getElementById('btn-pick-ob-watch');
+if (obPickBtn) obPickBtn.addEventListener('click', () => pickFolderNative('ob-watch-path'));
+
+// Destination Picker
+const destPickBtn = document.getElementById('btn-pick-dest-path');
+if (destPickBtn) destPickBtn.addEventListener('click', () => pickFolderNative('dest-path'));
+
+// Watch Path Picker
+const watchPickBtn = document.getElementById('btn-pick-watch-path');
+if (watchPickBtn) watchPickBtn.addEventListener('click', () => pickFolderNative('watch-path-input'));
+
+// Onboarding Submit
+const obSubmitBtn = document.getElementById('btn-submit-onboarding');
+if (obSubmitBtn) {
+    obSubmitBtn.addEventListener('click', async () => {
+        const path = document.getElementById('ob-watch-path').value;
+        if (!path) return showToast('Please select a folder to start.', 'error');
+        
+        // Add to watch paths
+        const res = await fetch(`${API_URL}/watcher/paths`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({path})
+        });
+        
+        if (res.ok) {
+            document.getElementById('onboarding-modal').classList.remove('active');
+            showToast('Setup complete! Now add some destinations in the Knowledge Base.', 'success');
+            // Navigate the user to destinations tab right away
+            document.querySelector('.nav-item[data-target="destinations"]').click();
+        } else {
+            showToast('Failed to add watch path.', 'error');
+        }
+    });
 }
 
 // --- Watcher Controls ---

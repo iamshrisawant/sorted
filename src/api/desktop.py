@@ -14,6 +14,18 @@ def run_server():
     from src.api.server import app
     uvicorn.run(app, host="127.0.0.1", port=8099, log_level="error")
 
+class DesktopAPI:
+    def pick_folder(self):
+        try:
+            window = webview.windows[0]
+            result = window.create_file_dialog(webview.FileDialog.FOLDER)
+            if result and len(result) > 0:
+                return result[0]
+            return None
+        except Exception as e:
+            print(f"Error opening folder picker: {e}")
+            return None
+
 def run_desktop_app():
     # Start FastAPI in a background thread
     server_thread = threading.Thread(target=run_server, daemon=True)
@@ -31,11 +43,14 @@ def run_desktop_app():
         return
 
     # Create the window
+    api = DesktopAPI()
     window = webview.create_window(
         title="SortedPC",
         url=f"file://{ui_path.resolve()}",
+        js_api=api,
         width=1100,
         height=750,
+        min_size=(900, 600),
         frameless=False,
         easy_drag=True,
         background_color='#0B0F19'

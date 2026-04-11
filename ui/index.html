@@ -65,10 +65,6 @@
                         <h1>Dashboard</h1>
                         <p>Overview of your local semantic sorting engine.</p>
                     </div>
-                    <button class="primary-btn" id="btn-open-sort-modal">
-                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        Manual Sort...
-                    </button>
                 </header>
 
                 <div class="stats-grid">
@@ -112,7 +108,10 @@
                     
                     <div class="form-group" style="margin-top:1rem;">
                         <label>Absolute Folder Path:</label>
-                        <input type="text" id="dest-path" class="input-field" placeholder="C:\Users\Username\Documents\Invoices">
+                        <div style="display:flex; gap:0.5rem;">
+                            <input type="text" id="dest-path" class="input-field" placeholder="C:\Users\Username\Documents\Invoices">
+                            <button class="secondary-btn" id="btn-pick-dest-path" title="Browse for folder">📂</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Context Rule (Optional details about what belongs here):</label>
@@ -174,6 +173,7 @@
                             
                             <div class="form-group" style="display:flex; gap:0.5rem; margin-top:0.5rem; margin-bottom: 0;">
                                 <input type="text" id="watch-path-input" class="input-field" placeholder="Path to watch...">
+                                <button class="secondary-btn" id="btn-pick-watch-path" title="Browse for folder">📂</button>
                                 <button class="secondary-btn" id="btn-add-watch-path">Add</button>
                             </div>
                             
@@ -186,11 +186,22 @@
                     <!-- Startup Task -->
                     <div class="panel">
                         <div class="setting-block">
-                            <div class="setting-header">Windows Background Task</div>
+                            <div class="setting-header">Background Startup Hook</div>
                             <div class="setting-desc">Launch the daemon silently in the background every time you boot your PC.</div>
                             <div class="action-buttons">
                                 <button class="secondary-btn" id="btn-register">Register Startup Hook</button>
                                 <button class="danger-btn" id="btn-unregister">Remove Hook</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Advanced Utilities -->
+                    <div class="panel">
+                        <div class="setting-block">
+                            <div class="setting-header">Advanced Utilities</div>
+                            <div class="setting-desc">Direct system controls.</div>
+                            <div class="action-buttons">
+                                <button class="secondary-btn" id="btn-open-sort-modal">Force Manual Sort Recursively</button>
                             </div>
                         </div>
                     </div>
@@ -258,6 +269,26 @@
             <div class="form-actions">
                 <button class="secondary-btn" onclick="document.getElementById('reset-modal').classList.remove('active')">Cancel</button>
                 <button class="danger-btn" id="btn-submit-reset">Erase Everything</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: First Time Onboarding Overlay -->
+    <div id="onboarding-modal" class="modal-overlay">
+        <div class="modal">
+            <h3 style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--primary);">Welcome to SortedPC</h3>
+            <p class="modal-desc">Before your AI assistant can start automating your files, you need to point it in the right direction.</p>
+            
+            <div class="setting-block" style="margin-bottom: 1.5rem;">
+                <div style="font-weight: 500; font-size: 0.95rem; margin-bottom: 0.4rem;">1. Set your main download/inbox folder</div>
+                <div style="display:flex; gap:0.5rem;">
+                    <input type="text" id="ob-watch-path" class="input-field" placeholder="Select your Downloads folder...">
+                    <button class="secondary-btn" id="btn-pick-ob-watch" title="Browse for folder">📂</button>
+                </div>
+            </div>
+
+            <div class="form-actions" style="margin-top: 2rem;">
+                <button class="primary-btn" id="btn-submit-onboarding">Let's Go!</button>
             </div>
         </div>
     </div>

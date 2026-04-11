@@ -12,12 +12,13 @@ src/**/__pycache__/
 .venv/
 env/
 venv/
+venv_old/
 
 # === LOG FILES ===
 *.log
 logs/
-src/watcher_launch.log
-src/launch_watcher.bat
+src/data/watcher.pid
+src/data/watcher_launch.log
 
 # === MODEL FILES ===
 src/core/models/

@@ -1,6 +1,5 @@
 import sys
 import json
-import ctypes
 import logging
 import subprocess
 import time
@@ -22,7 +21,7 @@ from src.core.pipelines.actor import handle_correction
 from src.core.pipelines.sorter import handle_new_file
 from src.core.utils.paths import (
     get_watch_paths, get_organized_paths, get_paths_file,
-    get_config_file, get_logs_path, get_xml, ROOT_DIR,
+    get_config_file, get_logs_path, ROOT_DIR,
     get_faiss_index_path, get_data_dir, get_unsorted_folder,
     update_paths, get_folder_contexts, update_folder_contexts
 )
@@ -32,11 +31,7 @@ from src.core.utils.notifier import notify_system_event
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
-SYSTEM32_PATH = Path(os.environ.get("SystemRoot", "C:\\Windows")) / "System32"
-SCHTASKS_EXE = SYSTEM32_PATH / "schtasks.exe"
-TASKKILL_EXE = SYSTEM32_PATH / "taskkill.exe"
 TASK_NAME = "SortedPC_Watcher"
-WATCHER_LAUNCHER_BAT = ROOT_DIR / "src" / "launch_watcher.bat"
 
 def safe_input(prompt: str = "") -> str:
     try:
@@ -55,133 +50,156 @@ def print_header(title: str):
     print(Style.BRIGHT + f"  {title}".center(40))
     print(Fore.CYAN + "=" * 40 + Style.RESET_ALL)
 
-import shlex
+import platform
+import stat
 
-def run_as_admin(command_to_run: str, wait=False) -> bool:
-    """Run a command with elevated privileges using ShellExecuteW."""
-    try:
-        # Correctly split command into executable and parameters for ShellExecuteW
-        try:
-            parts = shlex.split(command_to_run, posix=False)
-        except ValueError:
-            # Fallback for poorly quoted strings
-            parts = command_to_run.split(' ', 1)
-            
-        if not parts:
-            return False
-            
-        executable = parts[0].strip('"')
-        parameters = " ".join(parts[1:]) if len(parts) > 1 else ""
-        
-        logger.info(f"Requesting admin rights to run: {executable} {parameters}")
-        
-        # 1 = SW_SHOWNORMAL
-        hinstance = ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, parameters, None, 1)
-        return hinstance > 32
-    except Exception as e:
-        print(Fore.RED + f"Error: Elevation failed. {e}")
-        return False
+# Removed run_as_admin and old task schedulers. We now rely on user-level native startup hooks avoiding UAC.
 
-def generate_watcher_launcher_bat() -> bool:
-    try:
-        python_dir = Path(sys.executable).parent
-        python_exe = python_dir / "pythonw.exe"
+def get_watcher_script_path() -> Path:
+    return ROOT_DIR / "src" / "core" / "pipelines" / "watcher.py"
 
-        if not python_exe.exists():
-            python_exe = sys.executable
-
-        watcher_script_path = ROOT_DIR / "src" / "core" / "pipelines" / "watcher.py"
-        bat_content = f"""@echo off
-set PYTHONPATH={ROOT_DIR}
-cd /d "{ROOT_DIR}"
-start "SortedPC Watcher" /B "{python_exe}" "{watcher_script_path}"
-"""
-        WATCHER_LAUNCHER_BAT.write_text(bat_content)
-        return True
-    except Exception as e:
-        logger.error(f"FATAL: Could not generate watcher launcher script: {e}")
-        return False
-
-def generate_task_xml() -> bool:
-    """Dynamically generates the scheduled task XML to fix hardcoded path crashes."""
-    try:
-        xml_path = get_xml()
-        python_dir = Path(sys.executable).parent
+def get_pythonw_path() -> str:
+    python_dir = Path(sys.executable).parent
+    # Check for pythonw.exe on Windows for stealth execution
+    if platform.system() == "Windows":
         pythonw_exe = python_dir / "pythonw.exe"
-        if not pythonw_exe.exists():
-            pythonw_exe = sys.executable
-
-        script_path = ROOT_DIR / "src" / "core" / "pipelines" / "watcher.py"
-        working_dir = ROOT_DIR / "src"
-
-        xml_content = f"""<?xml version="1.0" encoding="UTF-16"?>
-<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
-  <RegistrationInfo><Author>SortedPC_TaskManager</Author><URI>\\SortedPC_Watcher</URI></RegistrationInfo>
-  <Principals><Principal id="Author"><LogonType>InteractiveToken</LogonType><RunLevel>HighestAvailable</RunLevel></Principal></Principals>
-  <Settings>
-    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-    <StartWhenAvailable>true</StartWhenAvailable><AllowHardTerminate>true</AllowHardTerminate><ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
-    <Enabled>true</Enabled><Hidden>true</Hidden>
-  </Settings>
-  <Triggers><LogonTrigger><Enabled>true</Enabled></LogonTrigger></Triggers>
-  <Actions Context="Author">
-    <Exec>
-      <Command>{pythonw_exe}</Command>
-      <Arguments>"{script_path}"</Arguments>
-      <WorkingDirectory>{working_dir}</WorkingDirectory>
-    </Exec>
-  </Actions>
-</Task>"""
-        xml_path.parent.mkdir(parents=True, exist_ok=True)
-        xml_path.write_text(xml_content, encoding="utf-16")
-        return True
-    except Exception as e:
-        logger.error(f"FATAL: Could not generate XML configuration: {e}")
-        return False
-
-def do_register_task():
-    if generate_task_xml():
-        xml_path = get_xml()
-        command = f'"{SCHTASKS_EXE}" /Create /TN "{TASK_NAME}" /XML "{xml_path.resolve()}" /F'
-        if run_as_admin(command):
-            print(Fore.GREEN + "Registration request sent. Check if task exists in Task Scheduler.")
-        else:
-            print(Fore.RED + "Failed to request registration.")
-
-def do_unregister_task():
-    command = f'"{SCHTASKS_EXE}" /Delete /TN "{TASK_NAME}" /F'
-    if run_as_admin(command):
-        print(Fore.GREEN + "Unregistration request sent.")
-    else:
-        print(Fore.RED + "Failed to request unregistration.")
+        if pythonw_exe.exists():
+            return str(pythonw_exe)
+    return sys.executable
 
 def do_start_watcher() -> bool:
-    if generate_watcher_launcher_bat():
-        # Check return value to prevent hanging on UAC denial
-        return run_as_admin(f'"{WATCHER_LAUNCHER_BAT}"')
-    return False
+    try:
+        script = get_watcher_script_path()
+        py_exe = get_pythonw_path()
+        sys_name = platform.system()
+        
+        if sys_name == "Windows":
+            DETACHED_PROCESS = 0x00000008
+            subprocess.Popen([py_exe, str(script)], 
+                             creationflags=DETACHED_PROCESS, 
+                             cwd=str(ROOT_DIR),
+                             close_fds=True)
+            return True
+        else:
+            subprocess.Popen([py_exe, str(script)],
+                             start_new_session=True,
+                             cwd=str(ROOT_DIR),
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+            return True
+    except Exception as e:
+        logger.error(f"Failed to start watcher natively: {e}")
+        return False
 
 def do_stop_watcher() -> bool:
     pid_file = get_pid_file()
     if pid_file.exists():
         try:
             pid = int(pid_file.read_text())
-            command = f'"{TASKKILL_EXE}" /PID {pid} /F /T'
-            if run_as_admin(command):
-                # Wait for the process to actually die to prevent file lock race conditions
-                for _ in range(10):
-                    if not is_pid_alive(pid):
-                        break
-                    time.sleep(0.5)
-                pid_file.unlink(missing_ok=True)
-                return True
+            sys_name = platform.system()
+            
+            if sys_name == "Windows":
+                # Fallback to taskkill to violently kill on windows
+                subprocess.run(['taskkill', '/PID', str(pid), '/F', '/T'], capture_output=True)
             else:
-                print(Fore.RED + "Action denied. The watcher is still running.")
-                return False
+                import signal
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                    
+            # Wait for down
+            for _ in range(10):
+                if not is_pid_alive(pid):
+                    break
+                time.sleep(0.5)
+            pid_file.unlink(missing_ok=True)
+            return True
         except (ValueError, FileNotFoundError):
             pid_file.unlink(missing_ok=True)
             return True
     return True
+
+def get_startup_file_path() -> Path:
+    sys_name = platform.system()
+    if sys_name == "Windows":
+        return Path(os.environ.get("APPDATA")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup" / "SortedPC_Watcher.vbs"
+    elif sys_name == "Darwin":
+        return Path.home() / "Library" / "LaunchAgents" / "com.sortedpc.watcher.plist"
+    else: # Linux
+        return Path.home() / ".config" / "systemd" / "user" / "sortedpc.service"
+
+def is_task_registered() -> bool:
+    return get_startup_file_path().exists()
+
+def do_register_task():
+    try:
+        startup_file = get_startup_file_path()
+        startup_file.parent.mkdir(parents=True, exist_ok=True)
+        py_exe = get_pythonw_path()
+        script = get_watcher_script_path()
+        sys_name = platform.system()
+
+        if sys_name == "Windows":
+            vbs_content = f'Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run """{py_exe}"" ""{script}""", 0, False'
+            startup_file.write_text(vbs_content, encoding="utf-8")
+        elif sys_name == "Darwin":
+            plist_content = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sortedpc.watcher</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{py_exe}</string>
+        <string>{script}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>WorkingDirectory</key>
+    <string>{ROOT_DIR}</string>
+</dict>
+</plist>'''
+            startup_file.write_text(plist_content, encoding="utf-8")
+            subprocess.run(["launchctl", "load", str(startup_file)], capture_output=True)
+        else: # Linux
+            service_content = f'''[Unit]
+Description=SortedPC Background Watcher
+After=default.target
+
+[Service]
+ExecStart={py_exe} {script}
+WorkingDirectory={ROOT_DIR}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target'''
+            startup_file.write_text(service_content, encoding="utf-8")
+            subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
+            subprocess.run(["systemctl", "--user", "enable", "sortedpc.service"], capture_output=True)
+
+        print(Fore.GREEN + "Startup hook registered successfully.")
+    except Exception as e:
+        print(Fore.RED + f"Failed to register startup hook: {e}")
+
+def do_unregister_task():
+    try:
+        startup_file = get_startup_file_path()
+        sys_name = platform.system()
+        
+        if sys_name == "Darwin" and startup_file.exists():
+            subprocess.run(["launchctl", "unload", str(startup_file)], capture_output=True)
+        elif sys_name == "Linux" and startup_file.exists():
+            subprocess.run(["systemctl", "--user", "disable", "sortedpc.service"], capture_output=True)
+            
+        startup_file.unlink(missing_ok=True)
+        print(Fore.GREEN + "Startup hook removed successfully.")
+    except Exception as e:
+        print(Fore.RED + f"Failed to remove startup hook: {e}")
 
 def is_watcher_online() -> bool:
     pid_file = get_pid_file()
@@ -189,12 +207,6 @@ def is_watcher_online() -> bool:
     try:
         return is_pid_alive(int(pid_file.read_text()))
     except (ValueError, FileNotFoundError): return False
-
-def is_task_registered() -> bool:
-    try:
-        subprocess.check_output([str(SCHTASKS_EXE), '/Query', '/TN', TASK_NAME], stderr=subprocess.DEVNULL)
-        return True
-    except subprocess.CalledProcessError: return False
 
 def get_watcher_status() -> str:
     online = is_watcher_online()
@@ -214,11 +226,15 @@ def wait_for_watcher_online(timeout: int = 60) -> bool:
     print(Fore.RED + " Timed out. Check 'src/watcher_launch.log' for errors.")
     return False
 
-def startup_check():
+def startup_check(interactive: bool = True):
     """Main startup routine to ensure the system is ready."""
     print_header("System Startup Check")
     run_initializer()
     print("1. File structure initialized.")
+
+    if not interactive:
+        # For UI launches, we stop here and let the UI handle empty states
+        return
 
     organized_paths = get_organized_paths()
     faiss_index_path = get_faiss_index_path()
@@ -604,7 +620,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Always initialize models/folders first
-    startup_check()
+    startup_check(interactive=args.cli)
 
     if args.cli:
         main_menu()

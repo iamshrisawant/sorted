@@ -37,14 +37,20 @@ The system features a dual-interface layer for configuration and training:
 ### Feedback Loop
 Manual corrections through the management interface update the underlying FAISS index, allowing the system to refine its classification over time based on user feedback.
 
+## Getting Started
+
+Follow these steps to get Sorted running on your machine:
+
+1. **Clone the repository** to your local machine.
+2. **Set up a Python virtual environment** to keep dependencies isolated.
+3. **Install dependencies** using the provided `requirements.txt` file.
+4. **Run the application**:
+   - `python src/main.py` to launch the Desktop UI.
+   - `python src/main.py --cli` to use the terminal interface.
+
 ---
 
 ## Research & Verification
 The `evaluation/` directory contains benchmarks used to measure classification accuracy. Results are available in [EVALUATIONS.md](EVALUATIONS.md).
 
-Future technical objectives are documented in [futureworks.md](futureworks.md).
-
----
-
-## License
-MIT License
+Future objectives and the long-term vision for Sorted are documented in [futureworks.md](futureworks.md).

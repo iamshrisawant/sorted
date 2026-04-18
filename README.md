@@ -1,61 +1,34 @@
-# Sorted (SortedPC)
+# SortedPC
 
-![Pipeline Diagram](assets/pipeline.png)
+SortedPC is an offline utility that monitors specified directories and moves incoming files into predefined destination folders based on semantic text similarity.
 
-**Sorted** is a local-first, file organization engine that transforms your cluttered directories into a semantically organized digital library. It monitors your inbox, extracts deep context (including OCR from images), and routes files into your Knowledge Hubs using local vector embeddings.
+## Usage Setup
 
----
+To deploy SortedPC locally:
+1. **Clone the repository** to your local machine.
+2. **Setup a virtual environment** to isolate dependencies.
+3. **Install dependencies** using the provided `requirements.txt`.
+4. **Launch the application** by executing `python src/main.py`.
 
-## 💎 Core Experience
+The system will automatically provision necessary directories and present the desktop interface for initial configuration. For a headless or terminal-exclusive experience, launch with the `--cli` argument.
 
-### 1. Hands-Free Organization (The Wait Queue)
-New to Sorted? Just point it at your cluttered folders. The system automatically stages your files in a **Wait Queue** while you establish your Knowledge Hubs. As soon as you define a destination, the AI automatically re-processes and routes your pending files—no manual re-submission required.
+## System Architecture
 
-### 2. Semantic Dashboard
-A minimalist, warm-monochrome interface (built with `pywebview` and FastAPI) provides a real-time overview of your local digital memory. Monitor the **Watcher**, triage files in the **Review Queue**, and prune your sorting **History** with ease.
+### Event-Driven Monitoring
+The application uses the `watchdog` library to intercept real-time file system events. Newly created or modified files in designated watch paths are placed into a processing queue, executing asynchronously.
 
-### 3. Manual Deep Scan
-Need to organize a massive existing archive? Use the **Manual Deep Scan** to recursively analyze entire directory trees. The AI will classify every supported file type, leaving your file system perfectly structured.
+### Inference Pipeline
+When a file is processed, its text content is extracted—using embedded local OCR for images and scanned PDFs—and passed through a local transformer (`all-MiniLM-L6-v2`). The model produces a vector embedding representing the semantic content of the document.
 
-### 4. Local-First Visual Intelligence
-Sorted features integrated **OCR and visual extraction**. It reads text from screenshots, scanned PDFs, and photos entirely on your CPU. Your data never leaves your machine.
+### Vector Routing and Classification
+The embedding is queried against a local FAISS (Facebook AI Similarity Search) index containing embeddings of known target contexts.
+- **Confidence Threshold**: A rank-weighted approach evaluates the FAISS results. If the similarity score falls below the required threshold, the file remains in an unprocessed state (Wait Queue).
+- **Manual Deep Scan**: The system provides a recursive scan utility to index and route pre-existing file archives in bulk.
+- **Review and Training Loop**: Misclassified files or files left in the Wait Queue can be manually managed. The system indexes these manual corrections to update the FAISS index and improve subsequent classification tasks.
 
----
+## Execution and Interface
 
-## 🛠 Technical Architecture
+The core logic operates locally. Operations evaluate entirely on the host machine processor. Management and configuration are handled via a local desktop frontend (built with FastAPI and `pywebview`), which provides an overview of the Wait Queue, recent actions, and index state.
 
-### 1. Event-Driven Monitoring
-The system utilizes `watchdog` to intercept file system events in real-time. Incoming files are queued for processing without blocking system IO.
-
-### 2. Transformer-Based Inference
-Every file is processed using the `all-MiniLM-L6-v2` transformer. The system auto-provisions these models on first run, ensuring a "plug-and-play" experience.
-
-### 3. Vector Routing (FAISS)
-Sorted uses **FAISS** (Facebook AI Similarity Search) to compare file embeddings against your Knowledge Hubs. 
-- **Wait Queue**: Files staged during untrained states are auto-sorted upon hub creation.
-- **Review Queue**: Files with low semantic confidence are held for manual verification, improving the AI's future accuracy.
-
----
-
-## 🚀 Getting Started
-
-1. **Clone & Virtual Env**   ```bash
-   git clone <repo-url>
-   python -m venv venv
-   source venv/bin/activate  # Or .\venv\Scripts\activate on Windows
-   ```
-2. **Install**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Run**:
-   ```bash
-   python src/main.py
-   ```
-   *Models and base directories will be automatically provisioned on launch.*
-
----
-
-## 🔬 Research & Vision
-Detailed benchmarks using the SROIE dataset are available in [evaluation/](evaluation/).
-For the long-term vision of Sorted as a localized digital brain, see [futureworks.md](futureworks.md).
+## Research and Evaluation
+System benchmarks and evaluations on precision and latency against datasets are recorded in `EVALUATIONS.md`.

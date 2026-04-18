@@ -1,19 +1,12 @@
-# Sorted: The Next Frontier
+# Future Roadmap
 
-Sorted is evolving from a file organizer into a localized, self-organizing digital memory. Our roadmap focuses on making the engine more conversational, proactive, and deeply integrated into your workflow.
+Development priorities revolve around expanding the vector classification mechanics into structured retrieval capabilities and improving metadata persistence.
 
-## 🔮 Upcoming Milestones
+## Knowledge Retrieval
+*Objective: Utilize the existing FAISS index to support query-based file retrieval.*
+- **Contextual Search**: Rather than solely computing embeddings to route files, the system will support localized querying of the FAISS index against constrained language models. This integration will extract and retrieve specific file strings or summaries relevant to user search queries.
 
-### 1. Local RAG (Document Q&A)
-*Goal: Beyond sorting—Sorted becomes a searchable knowledge base you can talk to.*
-- **Ask Sorted**: A chat interface where you can ask things like "What was the total on the electricity bill from last August?" or "Find me the meeting notes where we discussed the project budget."
-- **Contextual Retrieval**: Leveraging our existing FAISS index to provide localized, private Grounded Generation (RAG) using small, local LLMs.
-
-### 2. Proactive "Digital Memory"
-*Goal: Sorted understands relationships between your files, not just folders.*
-- **Relational Mapping**: Suggesting connections between documents (e.g., linking a travel receipt to a specific itinerary).
-- **Temporal Organization**: Developing a "Timeline" view of your work across all Knowledge Hubs.
-
----
-
-*Note: This roadmap is a living document. We prioritize absolute privacy, local-first execution, and a zero-friction user experience as we build these features.*
+## Contextual Association Among Files
+*Objective: To understand the relationships between distinct files to achieve a broader context and aid in agentic automations.*
+- **Graph-Based Linking**: Establish relational links between files that share semantic clusters or sequential metadata. This shifts the paradigm from isolated document sorting to interconnected knowledge graphing.
+- **Agentic Workflows**: By mapping file associations, the system will serve as a foundational data layer for autonomous agents. This allows localized language models to synthesize project-wide summaries, infer cross-document dependencies, and execute multi-file processing pipelines automatically.

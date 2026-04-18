@@ -2,55 +2,60 @@
 
 ![Pipeline Diagram](assets/pipeline.png)
 
-**Sorted** is a local-first file organization utility that monitors directories and classifies incoming files based on semantic similarity. It operates entirely offline using a local embedding pipeline and vector retrieval engine.
+**Sorted** is a local-first, file organization engine that transforms your cluttered directories into a semantically organized digital library. It monitors your inbox, extracts deep context (including OCR from images), and routes files into your Knowledge Hubs using local vector embeddings.
 
 ---
 
-## Technical Architecture
+## 💎 Core Experience
 
-Sorted is built as a decoupled system featuring a Python-based background daemon and a management interface.
+### 1. Hands-Free Organization (The Wait Queue)
+New to Sorted? Just point it at your cluttered folders. The system automatically stages your files in a **Wait Queue** while you establish your Knowledge Hubs. As soon as you define a destination, the AI automatically re-processes and routes your pending files—no manual re-submission required.
+
+### 2. Semantic Dashboard
+A minimalist, warm-monochrome interface (built with `pywebview` and FastAPI) provides a real-time overview of your local digital memory. Monitor the **Watcher**, triage files in the **Review Queue**, and prune your sorting **History** with ease.
+
+### 3. Manual Deep Scan
+Need to organize a massive existing archive? Use the **Manual Deep Scan** to recursively analyze entire directory trees. The AI will classify every supported file type, leaving your file system perfectly structured.
+
+### 4. Local-First Visual Intelligence
+Sorted features integrated **OCR and visual extraction**. It reads text from screenshots, scanned PDFs, and photos entirely on your CPU. Your data never leaves your machine.
+
+---
+
+## 🛠 Technical Architecture
 
 ### 1. Event-Driven Monitoring
-The system utilizes the `watchdog` library to intercept file system events in real-time. When a new file is detected in a watched directory, it is queued for processing without blocking the operating system's IO operations.
+The system utilizes `watchdog` to intercept file system events in real-time. Incoming files are queued for processing without blocking system IO.
 
-### 2. Semantic Inference Pipeline
-For every file detected, the system extracts text context and generates a vector embedding using the `all-MiniLM-L6-v2` transformer. This process is handled locally on the CPU, ensuring data privacy and offline functionality.
+### 2. Transformer-Based Inference
+Every file is processed using the `all-MiniLM-L6-v2` transformer. The system auto-provisions these models on first run, ensuring a "plug-and-play" experience.
 
-### 3. Vector Routing & Classification
-The system employs **FAISS (Facebook AI Similarity Search)** for vector retrieval.
-- **Similarity Scoring**: Incoming file embeddings are compared against a local index of pre-defined category centroids.
-- **Confidence Thresholding**: A rank-weighted classification algorithm determines the match. Files falling below a specified confidence threshold are rejected back to the source directory.
-
-### 4. Background Orchestration
-The background daemon is managed via native OS startup hooks, allowing for persistence across reboots without requiring elevated administrator privileges.
-- **Windows**: Native VBScript in the user's Startup folder.
-- **macOS/Linux**: `launchd` and `systemd` user-space services.
+### 3. Vector Routing (FAISS)
+Sorted uses **FAISS** (Facebook AI Similarity Search) to compare file embeddings against your Knowledge Hubs. 
+- **Wait Queue**: Files staged during untrained states are auto-sorted upon hub creation.
+- **Review Queue**: Files with low semantic confidence are held for manual verification, improving the AI's future accuracy.
 
 ---
 
-## Management Interface
+## 🚀 Getting Started
 
-The system features a dual-interface layer for configuration and training:
-- **Management UI**: A standalone window (via `pywebview`) communicating with a FastAPI local bridge for path management and history review.
-- **CLI**: A terminal-based interface for headless environments or manual interaction.
-
-### Feedback Loop
-Manual corrections through the management interface update the underlying FAISS index, allowing the system to refine its classification over time based on user feedback.
-
-## Getting Started
-
-Follow these steps to get Sorted running on your machine:
-
-1. **Clone the repository** to your local machine.
-2. **Set up a Python virtual environment** to keep dependencies isolated.
-3. **Install dependencies** using the provided `requirements.txt` file.
-4. **Run the application**:
-   - `python src/main.py` to launch the Desktop UI.
-   - `python src/main.py --cli` to use the terminal interface.
+1. **Clone & Virtual Env**   ```bash
+   git clone <repo-url>
+   python -m venv venv
+   source venv/bin/activate  # Or .\venv\Scripts\activate on Windows
+   ```
+2. **Install**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Run**:
+   ```bash
+   python src/main.py
+   ```
+   *Models and base directories will be automatically provisioned on launch.*
 
 ---
 
-## Research & Verification
-The `evaluation/` directory contains benchmarks used to measure classification accuracy. Results are available in [EVALUATIONS.md](EVALUATIONS.md).
-
-Future objectives and the long-term vision for Sorted are documented in [futureworks.md](futureworks.md).
+## 🔬 Research & Vision
+Detailed benchmarks using the SROIE dataset are available in [evaluation/](evaluation/).
+For the long-term vision of Sorted as a localized digital brain, see [futureworks.md](futureworks.md).

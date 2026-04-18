@@ -48,9 +48,9 @@ def run_desktop_app():
         title="SortedPC",
         url=f"file://{ui_path.resolve()}",
         js_api=api,
-        width=1100,
-        height=750,
-        min_size=(900, 600),
+        width=920,
+        height=660,
+        min_size=(850, 600),
         frameless=False,
         easy_drag=True,
         background_color='#0B0F19'

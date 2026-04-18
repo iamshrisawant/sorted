@@ -51,7 +51,7 @@
                 <div class="status-indicator"></div>
                 <div class="status-text">
                     <span class="status-title">System Offline</span>
-                    <span class="status-sub">Service not running</span>
+                    <span class="status-sub">Service inactive</span>
                 </div>
             </div>
         </nav>
@@ -86,6 +86,11 @@
                         <div class="stat-value" id="stat-hubs">0</div>
                         <div class="stat-meta">Active routing destinations</div>
                     </div>
+                    <div class="stat-card panel">
+                        <h3>Waiting for AI</h3>
+                        <div class="stat-value" id="stat-waiting">0</div>
+                        <div class="stat-meta">Pending Hub indexing</div>
+                    </div>
                 </div>
 
                 <!-- Manual Review Required -->
@@ -102,19 +107,27 @@
 
                 <!-- Live Processing Queue -->
                 <div id="active-queue-section" class="panel hidden">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                        <h3 style="margin:0; font-size:1rem;">Live Sorting Queue</h3>
-                        <span class="pulse-indicator"></span>
+                    <h3>Processing Queue</h3>
+                    <div id="active-queue-list"></div>
+                </div>
+
+                <div id="wait-queue-section" class="panel hidden">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <h3 style="margin:0;">Waiting for AI Readiness</h3>
+                        <div class="status-indicator online pulsing" style="width:10px; height:10px; border-radius:50%; background:var(--primary);"></div>
                     </div>
-                    <div id="active-queue-list" class="queue-list">
-                        <!-- Dynamic items -->
-                    </div>
+                    <p class="modal-desc">These files arrived while the system was untrained. They will be sorted automatically as soon as indexing finishes.</p>
+                    <div id="wait-queue-list"></div>
                 </div>
 
                 <div class="panel">
                     <h3>Service Controls</h3>
                     <div class="action-buttons">
-                        <button class="secondary-btn" id="btn-start-watcher">Start</button>
+                        <button class="primary-btn" id="btn-open-sort-modal">
+                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                            Manual Deep Scan
+                        </button>
+                        <button class="secondary-btn" id="btn-start-watcher">Start Watcher</button>
                         <button class="secondary-btn" id="btn-restart-watcher">Restart</button>
                         <button class="danger-btn" id="btn-stop-watcher">Stop</button>
                     </div>
@@ -140,7 +153,7 @@
                     <div class="form-group" style="margin-top:1rem;">
                         <label>Absolute Folder Path:</label>
                         <div style="display:flex; gap:0.5rem; width:100%;">
-                            <input type="text" id="dest-path" class="input-field" placeholder="C:\Users\Username\Documents\Invoices">
+                            <input type="text" id="dest-path" class="input-field" readonly placeholder="Click Browse to select folder...">
                             <button class="secondary-btn" id="btn-pick-dest-path" style="white-space:nowrap; padding: 0.6rem 1rem;">Browse</button>
                         </div>
                     </div>
@@ -203,7 +216,7 @@
                             <div class="setting-desc">Folders the daemon constantly monitors for newly added files (e.g. your Downloads folder).</div>
                             
                             <div class="form-group" style="display:flex; gap:0.5rem; margin-top:0.5rem; margin-bottom: 0;">
-                                <input type="text" id="watch-path-input" class="input-field" placeholder="Path to watch...">
+                                <input type="text" id="watch-path-input" class="input-field" readonly placeholder="Select folder to watch...">
                                 <button class="secondary-btn" id="btn-pick-watch-path" style="white-space:nowrap; padding: 0.6rem 1rem;">Browse</button>
                                 <button class="primary-btn" id="btn-add-watch-path">Add</button>
                             </div>
@@ -247,15 +260,18 @@
     <!-- Modal: Sort Now -->
     <div id="sort-modal" class="modal-overlay">
         <div class="modal">
-            <h3>Manual Force Sort</h3>
-            <p class="modal-desc">This will recursively scan and sort files. If left blank, it defaults to the main unsorted folder.</p>
+            <h3>Manual Deep Scan</h3>
+            <p class="modal-desc">This triggers a one-time recursive scan of all files and subfolders in the target directory. It ignores the monitoring queue and routes files immediately based on your Knowledge Base.</p>
             <div class="form-group">
-                <label>Folder Path to Sort (Optional):</label>
-                <input type="text" id="sort-target-path" class="input-field" placeholder="Leave blank for Default Inbox">
+                <label>Folder Path to Sort:</label>
+                <div style="display:flex; gap:0.5rem;">
+                    <input type="text" id="sort-target-path" class="input-field" readonly placeholder="Select scan target...">
+                    <button class="secondary-btn" id="btn-pick-sort-path">Browse</button>
+                </div>
             </div>
             <div class="form-actions">
                 <button class="secondary-btn" onclick="document.getElementById('sort-modal').classList.remove('active')">Cancel</button>
-                <button class="primary-btn" id="btn-submit-sort">Start Sorting</button>
+                <button class="primary-btn" id="btn-submit-sort">Start Deep Scan</button>
             </div>
         </div>
     </div>
@@ -268,7 +284,10 @@
             <p class="modal-desc">Specify the exact folder this file should have gone to. The AI will learn this rule instantly.</p>
             <div class="form-group">
                 <label>Correct Folder Path:</label>
-                <input type="text" id="correction-path" class="input-field" placeholder="C:\Correct\Folder\Here">
+                <div style="display:flex; gap:0.5rem;">
+                    <input type="text" id="correction-path" class="input-field" readonly placeholder="Select correct home...">
+                    <button class="secondary-btn" id="btn-pick-correction-path">Browse</button>
+                </div>
             </div>
             <div class="form-actions">
                 <button class="secondary-btn" onclick="document.getElementById('correction-modal').classList.remove('active')">Cancel</button>
@@ -302,7 +321,7 @@
             <div class="setting-block" style="margin-bottom: 1.5rem;">
                 <div style="font-weight: 500; font-size: 0.95rem; margin-bottom: 0.4rem;">1. Set your main download/inbox folder</div>
                 <div style="display:flex; gap:0.5rem;">
-                    <input type="text" id="ob-watch-path" class="input-field" placeholder="Select your Downloads folder...">
+                    <input type="text" id="ob-watch-path" class="input-field" readonly placeholder="Select your Downloads folder...">
                     <button class="secondary-btn" id="btn-pick-ob-watch" style="white-space:nowrap; padding: 0.6rem 0.8rem;">Browse</button>
                 </div>
             </div>

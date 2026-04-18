@@ -53,9 +53,6 @@ def log_move(sorted_data: dict, log_file: Optional[Path] = None):
     }
 
     with FileLock(log_file):
-        # We still need to filter out duplicates if we want to "replace" instead of just appending
-        # But for moves, maybe we just append? The existing logic was replacing.
-        # Let's keep the "replace" logic but optimize it.
         log_entries = _load_existing_logs(log_file, file_path, category_to_replace="moves")
         log_entries.append(new_entry)
 
@@ -124,17 +121,37 @@ def get_latest_log_entry(file_path: str) -> Optional[Dict]:
 
     try:
         with log_file.open("r", encoding="utf-8") as f:
-            # We don't read all into memory if we can avoid it, but for a small log it's okay.
-            # However, for safety and efficiency, let's keep it consistent.
-            lines = [
-                json.loads(line)
-                for line in f
-                if line.strip()
-            ]
+            lines = [json.loads(line) for line in f if line.strip()]
 
         for entry in reversed(lines):
             if entry.get("file_path", "").endswith(file_name) and entry.get("category") in {"moves", "corrections"}:
                 return entry
     except (IOError, PermissionError, json.JSONDecodeError):
         return None
-    return None
+    return None
+
+def remove_log_entry(file_path: str):
+    log_file = get_logs_path()
+    if not log_file.exists():
+        return
+
+    file_base = str(Path(file_path).resolve())
+
+    with FileLock(log_file):
+        lines = []
+        try:
+            if log_file.exists():
+                with log_file.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        if not line.strip(): continue
+                        try:
+                            entry = json.loads(line)
+                            if str(Path(entry.get("file_path", "")).resolve()) != file_base:
+                                lines.append(entry)
+                        except: continue
+            
+            with log_file.open("w", encoding="utf-8") as f:
+                for entry in lines:
+                    f.write(json.dumps(entry) + "\n")
+        except (IOError, PermissionError) as e:
+            logger.error(f"[Logger] Failed to delete entry: {e}")

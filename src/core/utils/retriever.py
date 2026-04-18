@@ -3,7 +3,7 @@ import json
 import logging
 import numpy as np
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from src.core.utils.paths import get_faiss_index_path, get_faiss_metadata_path
 from src.core.utils.processor import embedding_dim
@@ -17,7 +17,7 @@ _cached_mtime = 0.0
 def retrieve_similar(
     query_embeddings: List[List[float]],
     top_k: int = 10
-) -> List[Dict[str, Any]]:
+) -> Optional[List[Dict[str, Any]]]:
     if not query_embeddings:
         logger.warning("[Retriever] No embeddings provided for retrieval.")
         return []
@@ -25,10 +25,9 @@ def retrieve_similar(
     index_path = get_faiss_index_path()
     metadata_path = get_faiss_metadata_path()
 
-    if not index_path.exists():
-        raise FileNotFoundError(f"[Retriever] FAISS index missing: {index_path}")
-    if not metadata_path.exists():
-        raise FileNotFoundError(f"[Retriever] Metadata file missing: {metadata_path}")
+    if not index_path.exists() or not metadata_path.exists():
+        logger.warning("[Retriever] FAISS index or metadata missing. AI is untrained.")
+        return None
 
     try:
         global _cached_index, _cached_metadata, _cached_mtime

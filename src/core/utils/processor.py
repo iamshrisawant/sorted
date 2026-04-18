@@ -61,8 +61,7 @@ def _load_model(local_only: bool = True):
             # Try to load local first. If not found, internet download fails gracefully.
             _model = SentenceTransformer(
                 MODEL_NAME, 
-                cache_folder=str(get_models_dir()), 
-                local_files_only=local_only
+                cache_folder=str(get_models_dir())
             )
             logger.info("[Processor] Model loaded successfully.")
         except Exception as e:

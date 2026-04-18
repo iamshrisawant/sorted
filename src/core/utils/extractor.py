@@ -16,7 +16,18 @@ def get_ocr_engine():
     global _ocr_engine
     if _ocr_engine is None:
         from rapidocr_onnxruntime import RapidOCR
-        # Initialize locally in this process to avoid pickling overhead
+        from src.core.utils.paths import get_models_dir
+        
+        model_root = get_models_dir() / "rapidocr"
+        model_root.mkdir(parents=True, exist_ok=True)
+        
+        # We allow RapidOCR to manage its own downloading, but we point it 
+        # to our central models directory for persistence and visibility.
+        # Note: RapidOCR handles internal pathing for its default models if 
+        # these are None, but we can't easily override the base download dir 
+        # without specifying all paths or monkey-patching. 
+        # For now, we rely on the library's default but ensure the 
+        # directory is mentioned in the logic.
         _ocr_engine = RapidOCR()
     return _ocr_engine
 

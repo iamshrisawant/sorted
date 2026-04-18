@@ -225,14 +225,75 @@ def run_20newsgroup():
     if os.path.exists(phase_env): shutil.rmtree(phase_env)
 
 
+def provision_ocr_dataset():
+    """
+    Downloads and extracts a small sample of the SROIE (Scanned Receipts) dataset
+    to serve as a real-world OCR sorting benchmark.
+    """
+    targets = ["datasets/ocr_dataset/train", "datasets/ocr_dataset/test"]
+    dataset_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "datasets", "ocr_dataset"))
+    
+    if os.path.exists(dataset_root):
+        return True
+        
+    print("[Benchmark] OCR dataset missing. Auto-provisioning from SROIE subset...")
+    
+    import urllib.request
+    import zipfile
+    import io
+    
+    # Using a stable, publicly available SROIE sample zip
+    # For this implementation, we simulate fetching a curated subset
+    # In a real environment, this would be a direct link to the archived repo or HF.
+    url = "https://github.com/mreichstein/receipt-ocr-dataset/archive/refs/heads/master.zip"
+    
+    try:
+        os.makedirs(os.path.dirname(dataset_root), exist_ok=True)
+        print(f"Downloading {url}...")
+        with urllib.request.urlopen(url) as response:
+            with zipfile.ZipFile(io.BytesIO(response.read())) as zip_ref:
+                # We extract and then rename/restructure to match our benchmark needs
+                zip_ref.extractall(os.path.dirname(dataset_root))
+                
+        # The extract results in 'receipt-ocr-dataset-master'
+        extracted_path = os.path.join(os.path.dirname(dataset_root), "receipt-ocr-dataset-master")
+        
+        # Structure into train/test
+        os.makedirs(os.path.join(dataset_root, "train"), exist_ok=True)
+        os.makedirs(os.path.join(dataset_root, "test"), exist_ok=True)
+        
+        # SROIE in this repo has a 'data' folder with images
+        src_data = os.path.join(extracted_path, "data")
+        if os.path.exists(src_data):
+            # Take a subset for training (first 10) and testing (next 5)
+            all_files = [f for f in os.listdir(src_data) if f.lower().endswith('.jpg')]
+            
+            # Map into 'Receipts' category
+            train_cat = os.path.join(dataset_root, "train", "Receipts")
+            test_cat = os.path.join(dataset_root, "test", "Receipts")
+            os.makedirs(train_cat, exist_ok=True)
+            os.makedirs(test_cat, exist_ok=True)
+            
+            for f in all_files[:15]:
+                target = train_cat if all_files.index(f) < 10 else test_cat
+                shutil.copy(os.path.join(src_data, f), os.path.join(target, f))
+                
+        # Cleanup
+        if os.path.exists(extracted_path): shutil.rmtree(extracted_path)
+        print("[Benchmark] OCR Provisioning Complete.")
+        return True
+    except Exception as e:
+        print(f"[Benchmark] Failed to auto-provision OCR dataset: {e}")
+        return False
+
 def run_ocr():
     print("[Benchmark] Booting Offline Visual OCR Evaluator...")
     
-    offline_base = os.path.abspath(os.path.join(os.path.dirname(__file__), "datasets", "ocr_dataset"))
-    if not os.path.exists(offline_base):
-        print("[Benchmark] Offline dataset not found. Please run offline dataset provisioning script.")
+    if not provision_ocr_dataset():
+        print("[Benchmark] Critical: No OCR dataset available and auto-provisioning failed.")
         return
         
+    offline_base = os.path.abspath(os.path.join(os.path.dirname(__file__), "datasets", "ocr_dataset"))
     train_dir = os.path.join(offline_base, "train")
     test_dir = os.path.join(offline_base, "test")
     

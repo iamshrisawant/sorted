@@ -37,9 +37,13 @@ def sort_file(processed_data: Dict) -> Dict:
     CONFIDENCE_THRESHOLD = 0.5
 
     similar_files = retrieve_similar(embeddings)
+    if similar_files is None:
+        logger.warning("[Sorter] System is untrained (No index). Routing to Review.")
+        return {"file_path": processed_data["file_path"], "file_name": processed_data["file_name"], "untrained": True}
+        
     if not similar_files:
-        logger.info("[Sorter] No similar files found. Using fallback folder.")
-        return _build_output(processed_data, str(get_unsorted_folder()), {}, [], used_fallback=True)
+        logger.info("[Sorter] No semantic matches found. Routing to Review.")
+        return {"file_path": processed_data["file_path"], "file_name": processed_data["file_name"], "no_matches": True}
 
     folder_votes = {}
     abs_paths = {}
@@ -120,9 +124,20 @@ def __async_sort_callback(processed_data):
     try:
         result = sort_file(processed_data)
         
-        # 2. Handle Low Confidence Files
+        # 2. Handle Specialized Review Cases
+        if result.get("untrained"):
+            logger.info(f"[Sorter] System untrained for {result['file_name']}. Queuing for waitlist.")
+            from src.core.utils.stager import add_to_wait_queue
+            add_to_wait_queue(result["file_path"])
+            return
+
+        if result.get("no_matches"):
+            logger.info(f"[Sorter] No matches for {result['file_name']}. Staging.")
+            add_to_review(result["file_path"], reason="No semantic matches found")
+            return
+
         if result.get("low_confidence"):
-            logger.info(f"[Sorter] Low confidence for {result['file_name']}. Staging for review.")
+            logger.info(f"[Sorter] Low confidence for {result['file_name']}. Staging.")
             add_to_review(result["file_path"], reason="Low confidence", suggestions=result.get("suggestions"))
             return
 

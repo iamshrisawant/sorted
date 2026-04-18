@@ -55,11 +55,14 @@ class SortManualInput(BaseModel):
 def get_status():
     from src.core.utils.paths import get_builder_state, get_faiss_state
     from src.core.pipelines.worker import bg_engine
+    from src.core.utils.stager import get_wait_queue
+    wait_list = get_wait_queue()
     return {
         "online": is_watcher_online(),
         "registered": is_task_registered(),
         "watch_paths": get_watch_paths(),
         "total_destinations": len(get_organized_paths()),
+        "wait_queue_count": len(wait_list),
         "builder_busy": get_builder_state(),
         "faiss_built": get_faiss_state(),
         "processing_queue": list(bg_engine.currently_processing)
@@ -128,9 +131,20 @@ def add_destination(dest: Destination, background_tasks: BackgroundTasks):
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
             
-    if not any(Path(p) in Path(p_str).parents or p == p_str for p in paths):
-        paths.append(p_str)
-        update_paths({"organized_paths": paths})
+    # Check for overlaps
+    for existing_path in paths:
+        e_path = Path(existing_path)
+        new_path = Path(p_str)
+        if e_path == new_path:
+            raise HTTPException(status_code=400, detail="This folder is already a Knowledge Hub.")
+        if e_path in new_path.parents:
+            raise HTTPException(status_code=400, detail=f"Overlap: This folder is already covered by parent hub: {e_path.name}")
+        if new_path in e_path.parents:
+            # New path is parent of existing - we could merge, but for now just error to be safe
+            raise HTTPException(status_code=400, detail=f"Overlap: This folder contains existing hub: {e_path.name}. Remove it first to merge.")
+
+    paths.append(p_str)
+    update_paths({"organized_paths": paths})
     
     if dest.context.strip():
         contexts[p_str] = dest.context.strip()
@@ -139,6 +153,8 @@ def add_destination(dest: Destination, background_tasks: BackgroundTasks):
     def bg_rebuild():
         try:
             build_from_paths(get_organized_paths())
+            # Automate re-processing of waitlist
+            reprocess_waiting_files()
         except Exception as e:
             print(f"Error rebuilding: {e}")
             
@@ -159,6 +175,7 @@ def remove_destination(path: str, background_tasks: BackgroundTasks):
         
     def bg_rebuild():
         build_from_paths(get_organized_paths())
+        reprocess_waiting_files()
         
     background_tasks.add_task(bg_rebuild)
     return {"success": True}
@@ -176,6 +193,15 @@ def get_history():
     except Exception as e:
         return []
 
+@app.delete("/api/history")
+def delete_history(path: str):
+    from src.core.utils.logger import remove_log_entry
+    try:
+        remove_log_entry(path)
+        return {"success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/history/correct")
 def correct_history(corr: Correction, background_tasks: BackgroundTasks):
     if not Path(corr.new_folder).is_dir():
@@ -183,33 +209,26 @@ def correct_history(corr: Correction, background_tasks: BackgroundTasks):
         
     try:
         handle_correction(corr.original_file, corr.new_folder)
+        return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-        
-    def check_and_learn():
-        from src.core.utils.paths import normalize_path
-        from src.core.utils.notifier import notify_system_event
-        norm_dest = normalize_path(corr.new_folder)
-        organized = get_organized_paths()
-        is_covered = False
-        for p in organized:
+
+@app.get("/api/waitlist")
+def get_waitlist():
+    from src.core.utils.stager import get_wait_queue
+    return get_wait_queue()
+
+def reprocess_waiting_files():
+    from src.core.utils.stager import pop_all_waiting
+    from src.core.pipelines.sorter import handle_new_file
+    waiting_paths = pop_all_waiting()
+    if waiting_paths:
+        print(f"Index ready. Re-processing {len(waiting_paths)} waiting files...")
+        for path in waiting_paths:
             try:
-                if Path(norm_dest).is_relative_to(Path(p)):
-                    is_covered = True
-                    break
-            except AttributeError:
-                if norm_dest.startswith(p):
-                    is_covered = True
-                    break
-                    
-        if not is_covered:
-            organized.append(norm_dest)
-            update_paths({"organized_paths": organized})
-            build_from_paths([norm_dest])
-            notify_system_event("Learning Complete", "AI has indexed a newly corrected folder destination.")
-            
-    background_tasks.add_task(check_and_learn)
-    return {"success": True}
+                handle_new_file(path)
+            except Exception as e:
+                print(f"Failed to re-process {path}: {e}")
 
 @app.post("/api/sort/manual")
 def sort_inbox(params: SortManualInput, background_tasks: BackgroundTasks):

@@ -14,6 +14,7 @@ from src.core.utils.paths import (
     get_organized_paths,
     get_folder_contexts,
     update_config,
+    get_abort_state,
 )
 from src.core.utils.notifier import notify_system_event
 
@@ -24,7 +25,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 
 SUPPORTED_EXTENSIONS = {
     ".pdf", ".docx", ".pptx", ".xlsx", ".csv", ".tsv", 
-    ".txt", ".md", ".mdx", ".rst", ".rtf", ".html", ".htm", ".xml", ".eml", ".log"
+    ".txt", ".md", ".mdx", ".rst", ".rtf", ".html", ".htm", ".xml", ".eml", ".log",
+    ".jpg", ".jpeg", ".png", ".bmp", ".webp"
 }
 
 def is_valid_file(file_path: Path) -> bool:
@@ -46,6 +48,11 @@ def process_folder(folder_path: str) -> None:
     logger.info(f"[Builder] Processing folder: {folder}")
 
     for file_path in folder.rglob("*"):
+        # Interrupt if system is resetting
+        if get_abort_state():
+            logger.warning("[Builder] Abort signal detected. Terminating folder scan.")
+            return
+
         if not is_valid_file(file_path):
             continue
 
@@ -132,14 +139,23 @@ def build_from_paths(paths: List[str]) -> None:
     notify_system_event("Builder", "FAISS Index rebuild started.")
     update_config({"builder_busy": True})
 
-    for folder in paths:
-        process_folder(folder)
+    try:
+        for folder in paths:
+            if get_abort_state():
+                logger.warning("[Builder] Abort signal detected. Cancelling build.")
+                return
+            process_folder(folder)
 
-    process_folder_contexts(paths)
-
-    update_config({"builder_busy": False, "faiss_built": True})
-    notify_system_event("Builder", "FAISS Index completely built.")
-    logger.info("[Builder] Index build complete.")
+        if not get_abort_state():
+            process_folder_contexts(paths)
+    finally:
+        # Guarantee state cleanup
+        update_config({"builder_busy": False, "faiss_built": not get_abort_state()})
+        if get_abort_state():
+             logger.info("[Builder] Build aborted.")
+        else:
+             notify_system_event("Builder", "FAISS Index completely built.")
+             logger.info("[Builder] Index build complete.")
 
 
 if __name__ == "__main__":

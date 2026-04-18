@@ -94,6 +94,34 @@ async function fetchStatus() {
         document.getElementById('stat-state-meta').textContent = data.registered ? 'Registered to Startup' : 'Not registered to Startup';
         document.getElementById('stat-hubs').textContent = data.total_destinations;
         
+        // --- Builder Banner ---
+        const banner = document.getElementById('indexing-banner');
+        if (data.builder_busy) {
+            banner.classList.remove('hidden');
+        } else {
+            banner.classList.add('hidden');
+        }
+
+        // --- Processing Queue ---
+        const queueSection = document.getElementById('active-queue-section');
+        const queueList = document.getElementById('active-queue-list');
+        if (data.processing_queue && data.processing_queue.length > 0) {
+            queueSection.classList.remove('hidden');
+            queueList.innerHTML = '';
+            data.processing_queue.forEach(path => {
+                const fileName = path.split('\\').pop().split('/').pop();
+                const item = document.createElement('div');
+                item.className = 'queue-item';
+                item.textContent = `Sorting: ${fileName}`;
+                queueList.appendChild(item);
+            });
+        } else {
+            queueSection.classList.add('hidden');
+        }
+
+        // --- Manual Review Queue ---
+        fetchReviewQueue();
+
         // Show onboarding if no rules exist, exactly once per session
         if (!window.onboardingShown && data.watch_paths.length === 0 && data.total_destinations === 0) {
             document.getElementById('onboarding-modal').classList.add('active');
@@ -224,11 +252,13 @@ async function fetchDestinations() {
         const card = document.createElement('div');
         card.className = 'hub-card panel';
         card.innerHTML = `
-            <div class="hub-path">${d.path}</div>
+            <div class="hub-header">
+                <div class="hub-path">${d.path}</div>
+                <button class="icon-btn-del" title="Remove" onclick="removeDest('${d.path.replace(/\\/g, '\\\\')}')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+            </div>
             <div class="hub-context">${d.context || '<i>Default sorting</i>'}</div>
-            <button class="hub-card-del" title="Remove" onclick="removeDest('${d.path.replace(/\\/g, '\\\\')}')">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
         `;
         container.appendChild(card);
     });
@@ -377,6 +407,71 @@ document.getElementById('btn-submit-reset').addEventListener('click', async () =
         setTimeout(() => window.close(), 2000);
     }
 });
+
+async function fetchReviewQueue() {
+    try {
+        const res = await fetch(`${API_URL}/review/queue`);
+        const data = await res.json();
+        const section = document.getElementById('review-queue-section');
+        const container = document.getElementById('review-queue-list');
+        
+        if (data.length === 0) {
+            section.classList.add('hidden');
+            return;
+        }
+        
+        section.classList.remove('hidden');
+        container.innerHTML = '';
+        
+        data.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'review-card';
+            
+            let suggestionHtml = '';
+            if (item.suggestions && item.suggestions.length > 0) {
+                suggestionHtml = `
+                    <div class="review-suggestions">
+                        ${item.suggestions.map(s => `<span class="suggestion-tag" onclick="applyReview('${item.file_path.replace(/\\/g, '\\\\')}', '${s.replace(/\\/g, '\\\\')}')">${s.split('/').pop().split('\\').pop()}</span>`).join('')}
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="review-main">
+                    <div class="review-info">
+                        <div class="review-file">${item.file_name}</div>
+                        <div class="review-reason">${item.reason}</div>
+                    </div>
+                    <div class="review-actions">
+                        <button class="secondary-btn btn-sm" onclick="openCorrection('${item.file_path.replace(/\\/g, '\\\\')}', '${item.file_name}')">Assign Folder</button>
+                        <button class="icon-btn-del" onclick="ignoreReview('${item.file_path.replace(/\\/g, '\\\\')}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                ${suggestionHtml}
+            `;
+            container.appendChild(card);
+        });
+    } catch (e) { console.error("Failed to fetch review queue", e); }
+}
+
+window.applyReview = async function(filePath, targetFolder) {
+    const res = await fetch(`${API_URL}/review/apply`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ file_path: filePath, target_folder: targetFolder })
+    });
+    if (res.ok) {
+        showToast("File sorted & indexed.", "success");
+        fetchReviewQueue();
+    }
+}
+
+window.ignoreReview = async function(filePath) {
+    await fetch(`${API_URL}/review/ignore?file_path=${encodeURIComponent(filePath)}`, {method: 'DELETE'});
+    fetchReviewQueue();
+}
 
 // --- Initialization ---
 initTheme();

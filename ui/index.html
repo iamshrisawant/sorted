@@ -58,6 +58,14 @@
 
         <!-- Main Content -->
         <main class="main-content">
+            <!-- Global Building Banner -->
+            <div id="indexing-banner" class="banner hidden">
+                <div class="banner-content">
+                    <span class="spinner"></span>
+                    <span>AI Knowledge Base is being rebuilt... new files will be queued.</span>
+                </div>
+            </div>
+
             <!-- DASHBOARD -->
             <section id="dashboard" class="view active">
                 <header class="view-header">
@@ -77,6 +85,29 @@
                         <h3>Knowledge Hubs</h3>
                         <div class="stat-value" id="stat-hubs">0</div>
                         <div class="stat-meta">Active routing destinations</div>
+                    </div>
+                </div>
+
+                <!-- Manual Review Required -->
+                <div id="review-queue-section" class="panel hidden" style="border-left: 3px solid var(--primary);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <h3 style="margin:0; font-size:1.1rem;">Manual Review Required</h3>
+                        <span class="badge danger">AI Unsure</span>
+                    </div>
+                    <p class="text-muted" style="font-size: 0.85rem; margin-bottom:1.5rem;">The AI couldn't confidently categorize these files. Please assign them manually.</p>
+                    <div id="review-queue-list" class="review-list">
+                        <!-- Dynamic items -->
+                    </div>
+                </div>
+
+                <!-- Live Processing Queue -->
+                <div id="active-queue-section" class="panel hidden">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <h3 style="margin:0; font-size:1rem;">Live Sorting Queue</h3>
+                        <span class="pulse-indicator"></span>
+                    </div>
+                    <div id="active-queue-list" class="queue-list">
+                        <!-- Dynamic items -->
                     </div>
                 </div>
 
@@ -108,9 +139,9 @@
                     
                     <div class="form-group" style="margin-top:1rem;">
                         <label>Absolute Folder Path:</label>
-                        <div style="display:flex; gap:0.5rem;">
+                        <div style="display:flex; gap:0.5rem; width:100%;">
                             <input type="text" id="dest-path" class="input-field" placeholder="C:\Users\Username\Documents\Invoices">
-                            <button class="secondary-btn" id="btn-pick-dest-path" title="Browse for folder">📂</button>
+                            <button class="secondary-btn" id="btn-pick-dest-path" style="white-space:nowrap; padding: 0.6rem 1rem;">Browse</button>
                         </div>
                     </div>
                     <div class="form-group">
@@ -173,8 +204,8 @@
                             
                             <div class="form-group" style="display:flex; gap:0.5rem; margin-top:0.5rem; margin-bottom: 0;">
                                 <input type="text" id="watch-path-input" class="input-field" placeholder="Path to watch...">
-                                <button class="secondary-btn" id="btn-pick-watch-path" title="Browse for folder">📂</button>
-                                <button class="secondary-btn" id="btn-add-watch-path">Add</button>
+                                <button class="secondary-btn" id="btn-pick-watch-path" style="white-space:nowrap; padding: 0.6rem 1rem;">Browse</button>
+                                <button class="primary-btn" id="btn-add-watch-path">Add</button>
                             </div>
                             
                             <div class="list-container" id="watch-paths-list">
@@ -191,17 +222,6 @@
                             <div class="action-buttons">
                                 <button class="secondary-btn" id="btn-register">Register Startup Hook</button>
                                 <button class="danger-btn" id="btn-unregister">Remove Hook</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Advanced Utilities -->
-                    <div class="panel">
-                        <div class="setting-block">
-                            <div class="setting-header">Advanced Utilities</div>
-                            <div class="setting-desc">Direct system controls.</div>
-                            <div class="action-buttons">
-                                <button class="secondary-btn" id="btn-open-sort-modal">Force Manual Sort Recursively</button>
                             </div>
                         </div>
                     </div>
@@ -283,7 +303,7 @@
                 <div style="font-weight: 500; font-size: 0.95rem; margin-bottom: 0.4rem;">1. Set your main download/inbox folder</div>
                 <div style="display:flex; gap:0.5rem;">
                     <input type="text" id="ob-watch-path" class="input-field" placeholder="Select your Downloads folder...">
-                    <button class="secondary-btn" id="btn-pick-ob-watch" title="Browse for folder">📂</button>
+                    <button class="secondary-btn" id="btn-pick-ob-watch" style="white-space:nowrap; padding: 0.6rem 0.8rem;">Browse</button>
                 </div>
             </div>
 

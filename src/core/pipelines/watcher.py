@@ -41,7 +41,7 @@ from src.core.utils.notifier import notify_system_event
 from src.core.pipelines.sorter import handle_new_file
 
 # --- Constants ---
-SUPPORTED_EXTENSIONS = {'.pdf', '.docx', '.pptx', '.xlsx', '.csv', '.txt', '.md'}
+SUPPORTED_EXTENSIONS = {'.pdf', '.docx', '.pptx', '.xlsx', '.csv', '.txt', '.md', '.jpg', '.jpeg', '.png', '.bmp', '.webp'}
 SYSTEM_FILES = {'desktop.ini', 'thumbs.db', 'ntuser.dat', 'pictures - shortcut.lnk'}
 IGNORE_PREFIXES = ('~', '.', '~$')
 TEMP_EXTENSIONS = {'.tmp', '.crdownload', '.part'}
@@ -151,9 +151,16 @@ class InboxEventHandler(FileSystemEventHandler):
     def _refresh_processed_files(self):
         with self._lock:
             try:
-                self.processed_files = set(get_move_logs().keys())
+                # Load from moves logs
+                handled = set(get_move_logs().keys())
+                
+                # Load from review queue
+                from src.core.utils.stager import get_review_queue
+                pending = {item["file_path"] for item in get_review_queue()}
+                
+                self.processed_files = handled.union(pending)
             except Exception as e:
-                self.logger.warning(f"Failed to load move logs into cache: {e}")
+                self.logger.warning(f"Failed to load processed files into cache: {e}")
 
     def process_event(self, event):
         if event.is_directory:
@@ -166,27 +173,29 @@ class InboxEventHandler(FileSystemEventHandler):
         # 1. Strict Path Limitation
         watch_paths = get_watch_paths()
         is_within_allowed = False
+        normalized_target = normalize_path(file_path)
+        
         for wp in watch_paths:
-            if str(file_path).startswith(wp):
+            if normalized_target.startswith(normalize_path(wp)):
                 is_within_allowed = True
                 break
         
         if not is_within_allowed:
-            # Silently ignore files outside designate paths
+            self.logger.debug(f"Ignored (Outside watch paths): {file_path}")
             return
 
         # 2. Filter system and temporary files
         if file_name_lower.startswith(IGNORE_PREFIXES) or file_name_lower in SYSTEM_FILES:
+            self.logger.debug(f"Ignored (Prefix/System): {file_path}")
             return
             
         if file_ext in TEMP_EXTENSIONS:
+            self.logger.debug(f"Ignored (Temp extension): {file_path}")
             return
 
         # 3. Restrict to Supported Text-Based Documents
         if file_ext not in SUPPORTED_EXTENSIONS:
-            # Log as unsupported if it's not a known system/temp file we ignore silently
-            # But maybe only once per folder scan? For now, just skip silently to avoid log spam
-            # based on user request "Only for text based documents".
+            self.logger.debug(f"Ignored (Unsupported extension {file_ext}): {file_path}")
             return
             
         # Check cache with lock
@@ -201,11 +210,6 @@ class InboxEventHandler(FileSystemEventHandler):
             self.logger.warning(f"Timeout waiting for file lock release or unsupported state: {file_path.name}")
             return
             
-        # 2. Ensure we don't collide with the FAISS builder
-        if not wait_for_builder_release():
-            self.logger.warning("FAISS Index is currently locked by the Builder. Aborting sort.")
-            return
-
         try:
             # Double-check cache inside lock just before processing
             with self._lock:
@@ -296,7 +300,7 @@ if __name__ == "__main__":
     # Configure root logger to capture logs from all modules (sorter, processor, etc.)
     # force=True ensures we override any pre-existing configurations from other modules.
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s | %(levelname)s | %(message)s",
         handlers=[logging.FileHandler(log_file_path, mode='a', encoding='utf-8')],
         force=True

@@ -20,9 +20,9 @@ embedding_dim = 384
 
 def _extract_content(path: Path, file_type: str) -> str:
     try:
-        if file_type == "pdf":
-            with pdfplumber.open(path) as pdf:
-                return "\n".join(page.extract_text() or "" for page in pdf.pages)
+        if file_type in ("pdf", "jpg", "jpeg", "png", "bmp", "webp"):
+            from src.core.utils.extractor import extract_visual_content
+            return extract_visual_content(path, file_type)
         elif file_type == "docx":
             doc = docx.Document(path)
             return "\n".join(p.text for p in doc.paragraphs)
@@ -79,6 +79,12 @@ def process_file(file_path: Union[str, Path]) -> Dict:
     file_type = path.suffix.lower().lstrip('.')
     raw_content = _extract_content(path, file_type)
     
+    # Semantic Noise Filter: If visual/OCR extraction yields no text, abort.
+    # This prevents indexing random visual junk (screenshots, OS icons) without semantics.
+    if file_type in ("pdf", "jpg", "jpeg", "png", "bmp", "webp") and not raw_content.strip():
+        logger.warning(f"[Processor] Skipping {path.name}: No semantic text extracted from visual data.")
+        return {}
+
     text = raw_content.strip()
     if len(text) > 1000:
         cleaned_content = text[:500] + "\n...\n" + text[-500:]

@@ -22,25 +22,19 @@ src/data/watcher_launch.log
 
 # === MODEL FILES ===
 src/core/models/
-src/core/models/.gitkeep  # Optional: keep folder but not files
 
 # === FAISS INDEX & METADATA ===
 src/data/
-src/data/index.faiss
-src/data/meta.json
-src/data/state.json
 
 # === UI COMPILER GENERATED FILES ===
 *_ui.py
 
 # === OPTIONAL ===
 # Ignore compiled Qt UI files (if you want to only track .ui)
-# Uncomment the below if you regenerate _ui.py often and don't want to commit them
 # src/gui/components/*_ui.py
 # src/gui/scripts/ui_*.py
 
 # === SemantiSort Local Caches & Indexes ===
-# Exclude binary snapshots of the local file system
 *.pkl
 file_index.pkl
 folder_index.pkl
@@ -53,6 +47,12 @@ inbox/
 env_*
 test_inbox_*
 sorted/
+
+# === Large Dataset & Academic Caches ===
+evaluation/datasets/
+evaluation/scikit_learn_data/
+*.tar.gz
+*.tgz
 
 # === Jupyter Notebook Checkpoints ===
 .ipynb_checkpoints/

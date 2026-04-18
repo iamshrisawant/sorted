@@ -23,6 +23,7 @@ LOGS_FILE = DATA_DIR / "logs.jsonl"
 FAISS_INDEX_FILE = DATA_DIR / "index.faiss"
 FAISS_METADATA_FILE = DATA_DIR / "index_meta.jsonl"
 FOLDER_CONTEXTS_FILE = DATA_DIR / "folder_contexts.json"
+REVIEW_QUEUE_FILE = DATA_DIR / "review_queue.jsonl"
 
 MODELS_DIR = ROOT_DIR / "src" / "core" / "models"
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
@@ -88,6 +89,9 @@ def update_folder_contexts(updates: Dict[str, str]) -> None:
 
 def get_builder_state() -> bool:
     return _load_config_flag("builder_busy")
+
+def get_abort_state() -> bool:
+    return _load_config_flag("system_resetting")
 
 def get_faiss_state() -> bool:
     return _load_config_flag("faiss_built")

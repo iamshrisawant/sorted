@@ -87,31 +87,59 @@ def sort_file(processed_data: Dict) -> Dict:
             best_folder_rel = rel_folder
 
     if best_score < CONFIDENCE_THRESHOLD or best_folder_rel is None:
-        logger.info(f"[Sorter] Best score {best_score:.2f} is below threshold {CONFIDENCE_THRESHOLD}. Using fallback.")
-        return _build_output(processed_data, str(get_unsorted_folder()), scoring_details, list(final_scores), used_fallback=True)
+        logger.info(f"[Sorter] Best score {best_score:.2f} is below threshold {CONFIDENCE_THRESHOLD}.")
+        return {
+            "file_path": processed_data["file_path"],
+            "file_name": processed_data["file_name"],
+            "low_confidence": True,
+            "suggestions": list(final_scores.keys())[:3] # Top 3 guesses
+        }
 
     best_abs_path = abs_paths[best_folder_rel]
     logger.info(f"[Sorter] Best folder: {Path(best_abs_path).name} | Score: {best_score:.3f}")
     return _build_output(processed_data, best_abs_path, scoring_details, list(final_scores), used_fallback=False)
 
 
-def handle_new_file(file_path: str) -> None:
-    try:
-        logger.info(f"[Sorter] Processing new file: {file_path}")
-        processed_data = process_file(file_path)
+def __async_sort_callback(processed_data):
+    from src.core.utils.stager import add_to_review
+    
+    # 1. Handle Unextractable (Noise) Files
+    if not processed_data or not processed_data.get("embeddings"):
+        file_path = processed_data.get("file_path") if processed_data else "Unknown"
+        logger.warning(f"[Sorter] No semantic data extracted for {file_path}. Adding to review queue.")
+        if processed_data and processed_data.get("file_path"):
+            add_to_review(processed_data["file_path"], reason="No semantic data found")
+        return
 
-        if not processed_data or not processed_data.get("embeddings"):
-            logger.error(f"[Sorter] Aborting sort for {file_path} due to processing failure.")
+    from src.core.pipelines.watcher import wait_for_builder_release
+    if not wait_for_builder_release(timeout=300):
+        logger.warning(f"[Sorter] Index locked for too long. Aborting {processed_data.get('file_name')}")
+        return
+
+    logger.info(f"[Sorter] Sorting file: {processed_data.get('file_name')}")
+    try:
+        result = sort_file(processed_data)
+        
+        # 2. Handle Low Confidence Files
+        if result.get("low_confidence"):
+            logger.info(f"[Sorter] Low confidence for {result['file_name']}. Staging for review.")
+            add_to_review(result["file_path"], reason="Low confidence", suggestions=result.get("suggestions"))
             return
 
-        logger.info(f"[Sorter] Sorting file: {processed_data.get('file_name')}")
-        sorted_data = sort_file(processed_data)
-
+        # 3. Handle High Confidence Files (Auto-Move)
         logger.info(f"[Sorter] Handing off to actor: {processed_data.get('file_name')}")
-        act_on_file(sorted_data)
-
+        from src.core.pipelines.actor import act_on_file
+        act_on_file(result)
     except Exception as e:
-        logger.error(f"[Sorter] Unhandled exception in sorting pipeline for {file_path}: {e}")
+        logger.error(f"[Sorter] Unhandled exception in sorting pipeline callback: {e}")
+
+def handle_new_file(file_path: str) -> None:
+    try:
+        logger.info(f"[Sorter] Dispatching file to background workers: {file_path}")
+        from src.core.pipelines.worker import bg_engine
+        bg_engine.submit_file(file_path, callback=__async_sort_callback)
+    except Exception as e:
+        logger.error(f"[Sorter] Unhandled exception dispatching file {file_path}: {e}")
 
 if __name__ == "__main__":
     print("Sorter deployed via Paper Mathematics. Boot up main.py to test.")

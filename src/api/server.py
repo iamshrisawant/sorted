@@ -41,6 +41,10 @@ class Correction(BaseModel):
     original_file: str
     new_folder: str
 
+class ReviewApplyRequest(BaseModel):
+    file_path: str
+    target_folder: str
+
 class PathModel(BaseModel):
     path: str
 
@@ -49,11 +53,16 @@ class SortManualInput(BaseModel):
 
 @app.get("/api/status")
 def get_status():
+    from src.core.utils.paths import get_builder_state, get_faiss_state
+    from src.core.pipelines.worker import bg_engine
     return {
         "online": is_watcher_online(),
         "registered": is_task_registered(),
         "watch_paths": get_watch_paths(),
-        "total_destinations": len(get_organized_paths())
+        "total_destinations": len(get_organized_paths()),
+        "builder_busy": get_builder_state(),
+        "faiss_built": get_faiss_state(),
+        "processing_queue": list(bg_engine.currently_processing)
     }
 
 @app.post("/api/watcher/control")
@@ -232,7 +241,11 @@ def sort_inbox(params: SortManualInput, background_tasks: BackgroundTasks):
 
 @app.post("/api/system/reset")
 def reset_system():
+    from src.core.utils.paths import update_config
+    update_config({"system_resetting": True})
+
     if not do_stop_watcher():
+        update_config({"system_resetting": False})
         raise HTTPException(status_code=400, detail="Failed to stop watcher. Cannot reset.")
     time.sleep(1)
     do_unregister_task()
@@ -242,7 +255,11 @@ def reset_system():
         shutil.rmtree(data_dir, ignore_errors=True)
         
     from src.core.pipelines.initializer import run_initializer
-    # The old main menu does sys.exit(0) but here we can just reset and return
+    # Resetting config to base state after deletion
+    def final_reinit():
+        run_initializer(force_reset=True)
+        # Config is now fresh, so system_resetting is False
+        
     import threading
-    threading.Thread(target=lambda: run_initializer(force_reset=True)).start()
+    threading.Thread(target=final_reinit).start()
     return {"success": True}

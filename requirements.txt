@@ -5,6 +5,7 @@ python-docx             # DOCX extraction
 python-pptx             # PPTX text extraction
 openpyxl                # XLSX/Excel reading
 PyMuPDF                 # Lightweight PDF rendering
+rapidocr-onnxruntime    # ONNX backend for PP-OCR image extraction
 beautifulsoup4          # For HTML/XML cleanup
 
 # --- Embedding + NLP ---

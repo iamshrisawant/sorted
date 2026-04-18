@@ -559,8 +559,12 @@ def reset_all_menu():
     print(Fore.RED + Style.BRIGHT + "WARNING: This will delete all logs, indexes, and configurations.")
     if safe_input("Are you absolutely sure? Type 'reset' to confirm: ") == 'reset':
         print("Stopping watcher and unregistering...")
+        from src.core.utils.paths import update_config
+        update_config({"system_resetting": True})
+        
         if not do_stop_watcher():
             print(Fore.RED + "Cannot safely reset system while the watcher is still locked. Aborting.")
+            update_config({"system_resetting": False})
             time.sleep(2)
             return
             
@@ -573,6 +577,8 @@ def reset_all_menu():
         data_dir = get_data_dir()
         if data_dir.exists():
             shutil.rmtree(data_dir, ignore_errors=True)
+        
+        # Re-initialize will clear the flag if it creates a new config
         print(Fore.GREEN + "System has been reset. Please restart the application.")
         sys.exit(0)
     else:

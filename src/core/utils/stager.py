@@ -41,6 +41,8 @@ def pop_all_waiting() -> List[str]:
         if queue_file.exists():
             queue_file.unlink()
         return [i["file_path"] for i in items]
+
+def add_to_review(file_path: str, reason: str, suggestions: list = None):
     queue_file = get_review_queue_path()
     file_path = normalize_path(file_path)
     

@@ -230,6 +230,28 @@ def reprocess_waiting_files():
             except Exception as e:
                 print(f"Failed to re-process {path}: {e}")
 
+@app.get("/api/review/queue")
+def get_review_queue_endpoint():
+    from src.core.utils.stager import get_review_queue
+    return get_review_queue()
+
+@app.post("/api/review/apply")
+def apply_review(req: ReviewApplyRequest, background_tasks: BackgroundTasks):
+    from src.core.utils.stager import remove_from_review
+    from src.core.pipelines.actor import handle_correction
+    
+    # Remove from review queue
+    remove_from_review(req.file_path)
+    # Correct and move via actor
+    background_tasks.add_task(handle_correction, req.file_path, req.target_folder)
+    return {"success": True}
+
+@app.delete("/api/review/ignore")
+def ignore_review(file_path: str):
+    from src.core.utils.stager import remove_from_review
+    remove_from_review(file_path)
+    return {"success": True}
+
 @app.post("/api/sort/manual")
 def sort_inbox(params: SortManualInput, background_tasks: BackgroundTasks):
     def run_sort():
